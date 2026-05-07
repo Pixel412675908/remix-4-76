@@ -1,0 +1,2 @@
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS card_color text NOT NULL DEFAULT '#E50914';
