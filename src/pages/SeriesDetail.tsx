@@ -63,11 +63,10 @@ const SeriesDetail = () => {
       <BackButton />
 
       {/* Hero */}
-      <section className="relative h-[70vh] min-h-[500px] overflow-hidden">
-        <img
-          src={series.backdropUrl}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+      <section className="relative h-[70vh] min-h-[500px] overflow-hidden w-full" style={{ maxWidth: "100vw" }}>
+        <div
+          className="absolute inset-0 bg-no-repeat bg-cover bg-center"
+          style={{ backgroundImage: `url(${series.backdropUrl})`, backgroundPosition: "center top" }}
         />
         <div className="absolute inset-0 bg-gradient-hero" />
         <div className="absolute inset-0 bg-gradient-hero-side" />
