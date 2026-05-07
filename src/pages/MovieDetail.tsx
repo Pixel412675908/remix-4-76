@@ -37,8 +37,11 @@ const MovieDetail = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <BackButton />
-      <section className="relative h-[80vh] min-h-[600px] overflow-hidden">
-        <img src={media.backdropUrl} alt="" className="absolute inset-0 w-full h-full object-cover animate-ken-burns" />
+      <section className="relative h-[80vh] min-h-[600px] overflow-hidden w-full" style={{ maxWidth: "100vw" }}>
+        <div
+          className="absolute inset-0 bg-no-repeat bg-cover bg-center animate-ken-burns"
+          style={{ backgroundImage: `url(${media.backdropUrl})`, backgroundPosition: "center top" }}
+        />
         <div className="absolute inset-0 bg-gradient-hero" />
         <div className="absolute inset-0 bg-gradient-hero-side" />
 
