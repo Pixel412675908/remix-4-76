@@ -47,6 +47,7 @@ export function AssistantPanel({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [viewportH, setViewportH] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -61,6 +62,21 @@ export function AssistantPanel({
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  // Acompanha visualViewport pra popup encolher quando o teclado abre (não subir)
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setViewportH(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -192,22 +208,27 @@ export function AssistantPanel({
 
   if (!open) return null;
 
+  // Mobile: usa altura do visualViewport (encolhe quando o teclado abre, sem subir).
+  // Desktop: limite normal de 640px.
+  const dialogHeightStyle = viewportH
+    ? { height: `${Math.min(viewportH, viewportH)}px`, maxHeight: `${viewportH}px` }
+    : { maxHeight: "100dvh" };
+
   return (
     <div
       className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
       onTouchMove={(e) => {
-        // Bloqueia drag no backdrop completamente
         e.preventDefault();
         e.stopPropagation();
       }}
       style={{ touchAction: "none", overscrollBehavior: "contain" }}
     >
       <div
-        className="w-full sm:max-w-lg sm:my-8 h-[85dvh] sm:h-[640px] bg-popover border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-elevated flex flex-col overflow-hidden"
+        className="w-full sm:max-w-lg sm:my-8 h-[100dvh] sm:h-[640px] bg-popover border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-elevated flex flex-col overflow-hidden"
         role="dialog"
         aria-label="Assistente"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: "100dvh", touchAction: "auto", overscrollBehavior: "contain" }}
+        style={{ ...dialogHeightStyle, touchAction: "auto", overscrollBehavior: "contain" }}
       >
         {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-background/40">
@@ -312,7 +333,7 @@ export function AssistantPanel({
             </button>
           </div>
         )}
-        <form onSubmit={send} className="border-t border-white/5 p-3 flex items-end gap-2 bg-background/40">
+        <form onSubmit={send} className="border-t border-white/5 p-3 flex items-end gap-2 bg-popover sticky bottom-0 shrink-0">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -324,9 +345,6 @@ export function AssistantPanel({
             }}
             placeholder={mode === "support" ? "Como posso ajudar?" : "Conte um título que gostou…"}
             rows={1}
-            onFocus={(e) => {
-              setTimeout(() => e.currentTarget?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
-            }}
             className="flex-1 max-h-32 resize-none bg-background/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30 placeholder:text-muted-foreground"
           />
           <button

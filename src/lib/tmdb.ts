@@ -89,6 +89,7 @@ function mapItem(item: TmdbItem, fallbackType?: "movie" | "tv", genres?: Record<
     adult: explicit,
     mature,
     originalLanguage: item.original_language,
+    releaseDate: dateStr || undefined,
   };
   if (type === "tv") {
     base.seasons = [];
@@ -160,19 +161,22 @@ export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   return mapList(data.results, "movie", { minVotes: 50 });
 }
 export async function fetchAnimation(page = 1): Promise<Media[]> {
-  // Desenhos: animação TV não-japonesa
+  // Desenhos: animação TV NÃO-japonesa. Filtro duplo cliente-side garante exclusão.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page, with_genres: 16, without_original_language: "ja",
     sort_by: "popularity.desc", "vote_count.gte": 100, "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 100 });
+  const filtered = data.results.filter((r) => r.original_language !== "ja");
+  return mapList(filtered, "tv", { minVotes: 100 });
 }
 export async function fetchAnime(page = 1): Promise<Media[]> {
+  // Animes: SOMENTE language=ja com gênero animação.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page, with_genres: 16, with_original_language: "ja",
     sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 50 });
+  const filtered = data.results.filter((r) => r.original_language === "ja");
+  return mapList(filtered, "tv", { minVotes: 50 });
 }
 export async function fetchReality(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -203,15 +207,32 @@ export async function fetchExplicitMovies(page = 1): Promise<Media[]> {
 }
 export async function fetchUpcomingMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, sort_by: "popularity.desc", "primary_release_date.gte": TODAY, region: REGION,
+    page, sort_by: "primary_release_date.asc", "primary_release_date.gte": TODAY, region: REGION,
+    "vote_count.gte": 0,
   });
   return mapList(data.results, "movie", { minVotes: 0, requireReleased: false });
 }
 export async function fetchUpcomingTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, sort_by: "popularity.desc", "first_air_date.gte": TODAY,
+    page, sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
   });
   return mapList(data.results, "tv", { minVotes: 0, requireReleased: false });
+}
+export async function fetchUpcomingAnime(page = 1): Promise<Media[]> {
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_genres: 16, with_original_language: "ja",
+    sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
+  });
+  const filtered = data.results.filter((r) => r.original_language === "ja");
+  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
+}
+export async function fetchUpcomingAnimation(page = 1): Promise<Media[]> {
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_genres: 16, without_original_language: "ja",
+    sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
+  });
+  const filtered = data.results.filter((r) => r.original_language !== "ja");
+  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
 }
 
 // Loader auxiliar para pesquisa multi-página agregando popular + top_rated

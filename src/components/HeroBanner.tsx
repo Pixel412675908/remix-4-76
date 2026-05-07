@@ -23,18 +23,20 @@ export const HeroBanner = ({ media, onPlay }: HeroBannerProps) => {
   return (
     <section
       className="relative w-full h-[78vh] min-h-[460px] max-h-[760px] overflow-hidden"
+      style={{ maxWidth: "100vw" }}
       aria-label={`Em destaque: ${media.title}`}
       key={media.id}
     >
-      <div className="absolute inset-0">
-        <img
-          src={media.backdropUrl}
-          alt=""
-          width={1920}
-          height={1080}
-          className="w-full h-full object-cover animate-ken-burns"
-        />
-      </div>
+      <div
+        className="absolute inset-0 bg-no-repeat bg-cover bg-center animate-ken-burns"
+        style={{
+          backgroundImage: `url(${media.backdropUrl})`,
+          width: "100%",
+          height: "100%",
+        }}
+        role="img"
+        aria-label=""
+      />
 
       <div className="absolute inset-0 bg-gradient-hero pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-hero-side pointer-events-none" />
