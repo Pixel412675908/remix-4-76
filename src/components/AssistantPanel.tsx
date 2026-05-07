@@ -208,22 +208,27 @@ export function AssistantPanel({
 
   if (!open) return null;
 
+  // Mobile: usa altura do visualViewport (encolhe quando o teclado abre, sem subir).
+  // Desktop: limite normal de 640px.
+  const dialogHeightStyle = viewportH
+    ? { height: `${Math.min(viewportH, viewportH)}px`, maxHeight: `${viewportH}px` }
+    : { maxHeight: "100dvh" };
+
   return (
     <div
       className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
       onTouchMove={(e) => {
-        // Bloqueia drag no backdrop completamente
         e.preventDefault();
         e.stopPropagation();
       }}
       style={{ touchAction: "none", overscrollBehavior: "contain" }}
     >
       <div
-        className="w-full sm:max-w-lg sm:my-8 h-[85dvh] sm:h-[640px] bg-popover border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-elevated flex flex-col overflow-hidden"
+        className="w-full sm:max-w-lg sm:my-8 h-[100dvh] sm:h-[640px] bg-popover border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-elevated flex flex-col overflow-hidden"
         role="dialog"
         aria-label="Assistente"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: "100dvh", touchAction: "auto", overscrollBehavior: "contain" }}
+        style={{ ...dialogHeightStyle, touchAction: "auto", overscrollBehavior: "contain" }}
       >
         {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-background/40">
