@@ -333,7 +333,7 @@ export function AssistantPanel({
             </button>
           </div>
         )}
-        <form onSubmit={send} className="border-t border-white/5 p-3 flex items-end gap-2 bg-background/40">
+        <form onSubmit={send} className="border-t border-white/5 p-3 flex items-end gap-2 bg-popover sticky bottom-0 shrink-0">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -345,9 +345,6 @@ export function AssistantPanel({
             }}
             placeholder={mode === "support" ? "Como posso ajudar?" : "Conte um título que gostou…"}
             rows={1}
-            onFocus={(e) => {
-              setTimeout(() => e.currentTarget?.scrollIntoView({ block: "center", behavior: "smooth" }), 250);
-            }}
             className="flex-1 max-h-32 resize-none bg-background/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30 placeholder:text-muted-foreground"
           />
           <button
