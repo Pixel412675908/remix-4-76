@@ -47,6 +47,7 @@ export function AssistantPanel({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [viewportH, setViewportH] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
