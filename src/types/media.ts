@@ -22,6 +22,7 @@ export interface MediaBase {
   // +18 geral (violência, drogas, linguagem): exige allow_adult
   mature?: boolean;
   originalLanguage?: string;
+  releaseDate?: string; // YYYY-MM-DD — usado em Em Breve
 }
 
 export interface Episode {
