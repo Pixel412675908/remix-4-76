@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* === STREAMFLIX DESIGN SYSTEM ===
+   Premium dark streaming aesthetic. All colors HSL.
+*/
+
+@layer base {
+  :root {
+    /* Force dark only — this is a streaming app */
+    /* #0b0b0b ≈ hsl(0 0% 4.3%) */
+    --background: 0 0% 4.3%;
+    --foreground: 0 0% 98%;
+
+    --surface: 0 0% 7%;
+    --surface-elevated: 0 0% 10%;
+
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Netflix red exato — #E50914 */
+    --primary: 357 99% 45%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 357 100% 60%;
+
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 63%;
+
+    --accent: 0 0% 16%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 14%;
+    --ring: 357 99% 45%;
+
+    --radius: 0.375rem;
+
+    /* Gradients */
+    --gradient-hero: linear-gradient(180deg, transparent 0%, hsl(0 0% 4% / 0.5) 60%, hsl(0 0% 4%) 100%);
+    --gradient-hero-side: linear-gradient(90deg, hsl(0 0% 4%) 0%, hsl(0 0% 4% / 0.85) 30%, hsl(0 0% 4% / 0.2) 70%, transparent 100%);
+    --gradient-primary: linear-gradient(180deg, hsl(357 99% 45%) 0%, hsl(357 99% 35%) 100%);
+    --gradient-card: linear-gradient(180deg, transparent 50%, hsl(0 0% 0% / 0.95) 100%);
+    --gradient-overlay: linear-gradient(180deg, hsl(0 0% 0% / 0.7) 0%, hsl(0 0% 0% / 0.3) 50%, hsl(0 0% 0% / 0.9) 100%);
+    --gradient-auth-bg: radial-gradient(ellipse at 50% 0%, hsl(357 99% 45% / 0.10) 0%, transparent 50%), radial-gradient(ellipse at 50% 100%, hsl(0 0% 0%) 0%, hsl(0 0% 4.3%) 100%);
+
+    /* Shadows */
+    --shadow-card: 0 10px 40px -10px hsl(0 0% 0% / 0.8);
+    --shadow-glow: 0 0 60px hsl(357 99% 45% / 0.35);
+    --shadow-elevated: 0 30px 80px -20px hsl(0 0% 0% / 0.9), 0 8px 24px -8px hsl(0 0% 0% / 0.6);
+
+    /* Transitions */
+    --transition-smooth: cubic-bezier(0.32, 0.72, 0, 1);
+    --transition-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .dark {
+    /* same as root - app is dark only */
+    --background: 0 0% 4.3%;
+    --foreground: 0 0% 98%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Bebas Neue', 'Inter', sans-serif;
+    letter-spacing: 0.02em;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--accent));
+  }
+
+  /* Hide scrollbar utility for rows */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .text-shadow-hero {
+    text-shadow: 0 4px 30px hsl(0 0% 0% / 0.8), 0 2px 10px hsl(0 0% 0% / 0.6);
+  }
+
+  .container-flix {
+    @apply px-4 md:px-8 lg:px-12;
+  }
+
+  /* Background da tela de auth: gradiente radial sutil + textura noise SVG.
+     Identidade própria, não-genérica. */
+  .auth-bg {
+    background: var(--gradient-auth-bg);
+    position: relative;
+  }
+  .auth-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    mix-blend-mode: overlay;
+  }
+  .auth-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, hsl(0 0% 0% / 0.6) 100%);
+  }
+}
+
+/* === Global overflow + scroll horizontal das tabs em /settings === */
+html, body { overflow-x: hidden; max-width: 100vw; }
+.settings-tabs::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

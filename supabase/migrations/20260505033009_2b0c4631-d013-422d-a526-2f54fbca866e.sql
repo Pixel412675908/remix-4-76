@@ -1,0 +1,1 @@
+ALTER TABLE public.accounts ADD COLUMN IF NOT EXISTS allow_explicit BOOLEAN NOT NULL DEFAULT false;
