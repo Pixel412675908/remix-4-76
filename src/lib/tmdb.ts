@@ -89,6 +89,7 @@ function mapItem(item: TmdbItem, fallbackType?: "movie" | "tv", genres?: Record<
     adult: explicit,
     mature,
     originalLanguage: item.original_language,
+    releaseDate: dateStr || undefined,
   };
   if (type === "tv") {
     base.seasons = [];
