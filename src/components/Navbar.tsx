@@ -245,7 +245,7 @@ export const Navbar = () => {
       </nav>
 
       {/* Mobile nav — abaixo do header, compacto */}
-      <div className="lg:hidden border-t border-border/50 bg-background/90 backdrop-blur-md">
+      <div className="lg:hidden bg-transparent">
         <ul
           className="flex items-center gap-4 overflow-x-auto scrollbar-hide h-10 px-4"
           style={{ display: "flex", flexWrap: "nowrap", overflowX: "auto", WebkitOverflowScrolling: "touch" }}
@@ -257,8 +257,10 @@ export const Navbar = () => {
                 <Link
                   to={item.to}
                   className={cn(
-                    "text-xs transition-colors",
-                    active ? "text-primary font-bold" : "text-muted-foreground font-medium"
+                    "text-xs transition-colors [text-shadow:0_1px_3px_rgba(0,0,0,0.85)]",
+                    active
+                      ? "text-primary font-bold"
+                      : "text-white/75 font-medium hover:text-white"
                   )}
                 >
                   {item.label}
