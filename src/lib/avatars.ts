@@ -19,6 +19,22 @@ import a17 from "@/assets/avatars/avatar-17.png";
 import a18 from "@/assets/avatars/avatar-18.png";
 import a19 from "@/assets/avatars/avatar-19.png";
 import a20 from "@/assets/avatars/avatar-20.png";
+import s1 from "@/assets/avatars-svg/avatar-1.svg";
+import s2 from "@/assets/avatars-svg/avatar-2.svg";
+import s3 from "@/assets/avatars-svg/avatar-3.svg";
+import s4 from "@/assets/avatars-svg/avatar-4.svg";
+import s5 from "@/assets/avatars-svg/avatar-5.svg";
+import s6 from "@/assets/avatars-svg/avatar-6.svg";
+import s7 from "@/assets/avatars-svg/avatar-7.svg";
+import s8 from "@/assets/avatars-svg/avatar-8.svg";
+import s9 from "@/assets/avatars-svg/avatar-9.svg";
+import s10 from "@/assets/avatars-svg/avatar-10.svg";
+import s11 from "@/assets/avatars-svg/avatar-11.svg";
+import s12 from "@/assets/avatars-svg/avatar-12.svg";
+import s13 from "@/assets/avatars-svg/avatar-13.svg";
+import s14 from "@/assets/avatars-svg/avatar-14.svg";
+import s15 from "@/assets/avatars-svg/avatar-15.svg";
+import s16 from "@/assets/avatars-svg/avatar-16.svg";
 
 export interface PresetAvatar {
   id: string;
