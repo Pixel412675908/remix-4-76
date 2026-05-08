@@ -85,7 +85,3 @@ export const PRESET_AVATARS: PresetAvatar[] = [
 export function avatarFromName(_name: string): string | null {
   return null;
 }
-
-export function avatarFromName(_name: string): string | null {
-  return null;
-}
