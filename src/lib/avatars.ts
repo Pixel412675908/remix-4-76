@@ -64,7 +64,27 @@ export const PRESET_AVATARS: PresetAvatar[] = [
   { id: "preset-18", url: a18, label: "Atlas" },
   { id: "preset-19", url: a19, label: "Iris" },
   { id: "preset-20", url: a20, label: "Kiro" },
+  { id: "svg-1", url: s1, label: "Maya V" },
+  { id: "svg-2", url: s2, label: "Solar V" },
+  { id: "svg-3", url: s3, label: "Yumi V" },
+  { id: "svg-4", url: s4, label: "Sole V", kid: true },
+  { id: "svg-5", url: s5, label: "Mestre V" },
+  { id: "svg-6", url: s6, label: "Órbita V" },
+  { id: "svg-7", url: s7, label: "Bambu V", kid: true },
+  { id: "svg-8", url: s8, label: "Coruja V", kid: true },
+  { id: "svg-9", url: s9, label: "Sombra V" },
+  { id: "svg-10", url: s10, label: "Aviador V" },
+  { id: "svg-11", url: s11, label: "Nova V" },
+  { id: "svg-12", url: s12, label: "Neon V" },
+  { id: "svg-13", url: s13, label: "Estelar V", kid: true },
+  { id: "svg-14", url: s14, label: "Chef V" },
+  { id: "svg-15", url: s15, label: "Flow V" },
+  { id: "svg-16", url: s16, label: "Drako V", kid: true },
 ];
+
+export function avatarFromName(_name: string): string | null {
+  return null;
+}
 
 export function avatarFromName(_name: string): string | null {
   return null;
