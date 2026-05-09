@@ -409,8 +409,7 @@ function AvatarPickerCard({
     }
   };
 
-  // 16 avatares visíveis conforme o pedido
-  const avatars = PRESET_AVATARS.slice(0, 16);
+  const avatars = PRESET_AVATARS;
 
   return (
     <Card>
