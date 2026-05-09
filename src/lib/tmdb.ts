@@ -317,8 +317,55 @@ export async function fetchTvDetail(id: number): Promise<Series | null> {
       const eps = await fetchSeasonEpisodes(id, base.seasons[0].number);
       base.seasons[0].episodes = eps;
     }
+    (base as any).audioLanguages = (data.spoken_languages ?? data.languages ?? [])
+      .map((l: any) => (typeof l === "string" ? l : l.iso_639_1)).filter(Boolean);
+    (base as any).subtitleLanguages = (data.translations?.translations ?? [])
+      .map((t: any) => t.iso_639_1).filter(Boolean);
     return base;
   } catch { return null; }
+}
+
+// ============ Watch providers (streaming disponível por região) ============
+export interface ProviderInfo {
+  id: number;
+  name: string;
+  logoUrl: string;
+}
+
+const providersCache = new Map<string, ProviderInfo[]>();
+
+export async function fetchWatchProviders(
+  type: "movie" | "tv",
+  id: number,
+  region: string = REGION
+): Promise<ProviderInfo[]> {
+  const key = `${type}:${id}:${region}`;
+  if (providersCache.has(key)) return providersCache.get(key)!;
+  try {
+    const data = await tget<any>(`/${type}/${id}/watch/providers`);
+    const r = data.results?.[region] ?? data.results?.US;
+    if (!r) {
+      providersCache.set(key, []);
+      return [];
+    }
+    const seen = new Set<number>();
+    const merged: ProviderInfo[] = [];
+    for (const list of [r.flatrate, r.free, r.ads, r.buy, r.rent]) {
+      for (const p of list ?? []) {
+        if (seen.has(p.provider_id)) continue;
+        seen.add(p.provider_id);
+        merged.push({
+          id: p.provider_id,
+          name: p.provider_name,
+          logoUrl: `https://image.tmdb.org/t/p/w92${p.logo_path}`,
+        });
+      }
+    }
+    providersCache.set(key, merged);
+    return merged;
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchSeasonEpisodes(tvId: number, season: number): Promise<Episode[]> {
