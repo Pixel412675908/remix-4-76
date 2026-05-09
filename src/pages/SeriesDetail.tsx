@@ -5,11 +5,13 @@ import { Navbar } from "@/components/Navbar";
 import { BackButton } from "@/components/BackButton";
 
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { StreamingProviders } from "@/components/StreamingProviders";
 import { fetchSeries, fetchEpisodesForSeason } from "@/lib/api";
 import { Series, Episode } from "@/types/media";
 import { useMyList } from "@/hooks/useMyList";
 import { useTrackMediaActivity } from "@/hooks/useWatchHistory";
 import { cn } from "@/lib/utils";
+import { LANG_LABEL } from "@/lib/languages";
 
 const SeriesDetail = () => {
   const { id } = useParams();
@@ -132,6 +134,34 @@ const SeriesDetail = () => {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="container-flix pt-6 space-y-6">
+        <StreamingProviders type="tv" id={series.id} />
+        {(series.audioLanguages?.length || series.subtitleLanguages?.length) ? (
+          <div className="grid sm:grid-cols-2 gap-5">
+            {series.audioLanguages && series.audioLanguages.length > 0 && (
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">Áudio</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {series.audioLanguages.map((c) => (
+                    <span key={c} className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/10">{LANG_LABEL[c] ?? c.toUpperCase()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {series.subtitleLanguages && series.subtitleLanguages.length > 0 && (
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground mb-2">Legendas</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {series.subtitleLanguages.slice(0, 24).map((c) => (
+                    <span key={c} className="text-xs px-2 py-1 rounded-md bg-white/[0.05] border border-white/10">{LANG_LABEL[c] ?? c.toUpperCase()}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : null}
       </section>
 
       {/* Episódios */}
