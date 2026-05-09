@@ -112,13 +112,30 @@ function qualityFilter(item: TmdbItem, minVotes = 50): boolean {
   return true;
 }
 
-async function mapList(items: TmdbItem[], fallbackType?: "movie" | "tv", opts?: { minVotes?: number; requireReleased?: boolean }): Promise<Media[]> {
+// Idiomas com áudio aceito (prioridade: pt-BR > pt-PT > en).
+// "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
+const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
+
+function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
+  const lang = (item.original_language || "").toLowerCase();
+  if (ALLOWED_AUDIO_LANGS.has(lang)) return true;
+  if (allowJa && lang === "ja") return true;
+  return false;
+}
+
+async function mapList(
+  items: TmdbItem[],
+  fallbackType?: "movie" | "tv",
+  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean }
+): Promise<Media[]> {
   const genres = await loadGenres();
   const minVotes = opts?.minVotes ?? 50;
   const requireReleased = opts?.requireReleased ?? true;
+  const allowJa = opts?.allowJa ?? false;
   return items
     .filter((i) => qualityFilter(i, minVotes))
     .filter((i) => (requireReleased ? isReleased(i) : true))
+    .filter((i) => hasAcceptedAudio(i, allowJa))
     .map((i) => mapItem(i, fallbackType, genres));
 }
 
