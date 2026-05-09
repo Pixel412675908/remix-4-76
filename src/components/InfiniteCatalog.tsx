@@ -19,7 +19,7 @@ interface Props {
   badgeRender?: (m: Media) => React.ReactNode;
 }
 
-export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 10, badgeRender }: Props) {
+export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badgeRender }: Props) {
   const { account, activeProfile } = useAuth();
   const [items, setItems] = useState<Media[]>([]);
   const [page, setPage] = useState(1);

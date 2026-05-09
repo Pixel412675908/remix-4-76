@@ -78,6 +78,8 @@ export const StreamWorldOverlay = () => {
         title="StreamWorld"
         src={url}
         onLoad={() => setLoaded(true)}
+        referrerPolicy="strict-origin-when-cross-origin"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation allow-orientation-lock"
         allow="autoplay; fullscreen; encrypted-media; clipboard-read; clipboard-write"
         allowFullScreen
         style={{

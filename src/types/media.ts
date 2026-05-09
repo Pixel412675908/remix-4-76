@@ -23,6 +23,8 @@ export interface MediaBase {
   mature?: boolean;
   originalLanguage?: string;
   releaseDate?: string; // YYYY-MM-DD — usado em Em Breve
+  audioLanguages?: string[]; // códigos ISO 639-1 disponíveis em áudio
+  subtitleLanguages?: string[]; // códigos ISO 639-1 disponíveis em legenda
 }
 
 export interface Episode {
