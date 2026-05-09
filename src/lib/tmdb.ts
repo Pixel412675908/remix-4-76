@@ -283,18 +283,20 @@ export async function fetchHeroPool(): Promise<Media[]> {
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {
   try {
-    const data = await tget<any>(`/movie/${id}`);
+    const data = await tget<any>(`/movie/${id}`, { append_to_response: "translations" });
     const genres: Record<number, string> = {};
     (data.genres ?? []).forEach((g: any) => (genres[g.id] = g.name));
     const m = mapItem({ ...data, genre_ids: (data.genres ?? []).map((g: any) => g.id) }, "movie", genres) as Movie;
     if (data.runtime) (m as any).duration = `${Math.floor(data.runtime / 60)}h ${data.runtime % 60}min`;
+    (m as any).audioLanguages = (data.spoken_languages ?? []).map((l: any) => l.iso_639_1).filter(Boolean);
+    (m as any).subtitleLanguages = (data.translations?.translations ?? []).map((t: any) => t.iso_639_1).filter(Boolean);
     return m;
   } catch { return null; }
 }
 
 export async function fetchTvDetail(id: number): Promise<Series | null> {
   try {
-    const data = await tget<any>(`/tv/${id}`);
+    const data = await tget<any>(`/tv/${id}`, { append_to_response: "translations" });
     const genres: Record<number, string> = {};
     (data.genres ?? []).forEach((g: any) => (genres[g.id] = g.name));
     const base = mapItem(
