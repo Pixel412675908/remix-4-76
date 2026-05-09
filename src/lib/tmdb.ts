@@ -193,7 +193,7 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
   });
   const filtered = data.results.filter((r) => r.original_language === "ja");
-  return mapList(filtered, "tv", { minVotes: 50 });
+  return mapList(filtered, "tv", { minVotes: 50, allowJa: true });
 }
 export async function fetchReality(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -241,7 +241,7 @@ export async function fetchUpcomingAnime(page = 1): Promise<Media[]> {
     sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
   });
   const filtered = data.results.filter((r) => r.original_language === "ja");
-  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
+  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false, allowJa: true });
 }
 export async function fetchUpcomingAnimation(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
