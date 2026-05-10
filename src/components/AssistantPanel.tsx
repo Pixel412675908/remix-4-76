@@ -193,11 +193,30 @@ export function AssistantPanel({
   };
 
   const copy = async (text: string, idx: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const tryCopy = async () => {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {/* fallthrough */}
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const done = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return done;
+      } catch { return false; }
+    };
+    if (await tryCopy()) {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1500);
-    } catch {
+    } else {
       toast({ title: "Não foi possível copiar", variant: "destructive" });
     }
   };
