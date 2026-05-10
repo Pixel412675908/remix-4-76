@@ -193,11 +193,30 @@ export function AssistantPanel({
   };
 
   const copy = async (text: string, idx: number) => {
-    try {
-      await navigator.clipboard.writeText(text);
+    const tryCopy = async () => {
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch {/* fallthrough */}
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        const done = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return done;
+      } catch { return false; }
+    };
+    if (await tryCopy()) {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx((c) => (c === idx ? null : c)), 1500);
-    } catch {
+    } else {
       toast({ title: "Não foi possível copiar", variant: "destructive" });
     }
   };
@@ -298,10 +317,11 @@ export function AssistantPanel({
                   )}
                 >
                   <div>{m.content || (sending && !isUser && idx === messages.length - 1 ? "…" : "")}</div>
-                  {m.content && (
+                  {m.content && !isUser && (
                     <button
+                      type="button"
                       onClick={() => copy(m.content, idx)}
-                      className="mt-1.5 opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-opacity"
+                      className="mt-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                       aria-label="Copiar mensagem"
                     >
                       {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
