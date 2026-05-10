@@ -1,14 +1,31 @@
-// Player real: TMDB + VidSrc/embedstreams. Modo paisagem em mobile via Screen Orientation API.
-// Sandbox configurado: bloqueia popups de ads sem quebrar player.
+// Player real com hierarquia de servidores e fallback automático.
+// Provedores: VidSrc -> AutoEmbed -> 2Embed -> Superembed.
+// Modo paisagem em mobile via Screen Orientation API. Sandbox bloqueia popups de ads.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Lock, Compass, Tv, Clock, ExternalLink, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Lock,
+  Compass,
+  Tv,
+  Clock,
+  ExternalLink,
+  AlertTriangle,
+  Server,
+  ChevronDown,
+  RefreshCw,
+} from "lucide-react";
 import { Media, Episode } from "@/types/media";
 import { useAuth } from "@/hooks/useAuth";
-import { buildEmbedUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { checkExplorerAccess, trackExplorerUsage, EXPLORER_LIMITS } from "@/lib/explorer";
+import {
+  STREAM_PROVIDERS,
+  orderedProviders,
+  markUnhealthy,
+  type StreamProviderId,
+} from "@/lib/streamProviders";
 
 interface VideoPlayerProps {
   media: Media | null;
@@ -17,46 +34,73 @@ interface VideoPlayerProps {
   onClose: () => void;
 }
 
+const AUTO: "auto" = "auto";
+type Selected = typeof AUTO | StreamProviderId;
+const STORAGE_KEY = "streamflix:preferred-server";
+
 export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps) => {
   const { isExplorer } = useAuth();
   const navigate = useNavigate();
   const [explorerBlock, setExplorerBlock] = useState<{ blocked: boolean; reason?: "movie_limit" | "series_limit" } | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [iframeBlocked, setIframeBlocked] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(true);
+  const [serverMenuOpen, setServerMenuOpen] = useState(false);
+  const [allFailed, setAllFailed] = useState(false);
+  const [switching, setSwitching] = useState(false);
+
+  // Preferência: AUTO ou um provider específico
+  const [selected, setSelected] = useState<Selected>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw === "vidsrc" || raw === "autoembed" || raw === "2embed" || raw === "superembed" || raw === "auto") {
+        return raw as Selected;
+      }
+    } catch {/* ignore */}
+    return AUTO;
+  });
+
+  // Quando AUTO: índice atual dentro da fila ordenada
+  const [autoIndex, setAutoIndex] = useState(0);
+  const orderedRef = useRef(orderedProviders());
+
   const tickRef = useRef<number | null>(null);
   const overlayTimerRef = useRef<number | null>(null);
   const blockTimerRef = useRef<number | null>(null);
 
-  // ESC + body lock + tentar travar landscape em mobile
+  // Reset ao abrir/trocar mídia
   useEffect(() => {
     if (!open || !media) {
       setElapsed(0);
       setExplorerBlock(null);
       setIframeLoaded(false);
-      setIframeBlocked(false);
       setOverlayVisible(true);
+      setAllFailed(false);
+      setAutoIndex(0);
+      setSwitching(false);
+      orderedRef.current = orderedProviders();
       return;
     }
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-
-    // Tenta forçar landscape em mobile
     const orient: any = (screen as any).orientation;
     if (orient && typeof orient.lock === "function") {
       orient.lock("landscape").catch(() => {});
     }
-
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
       if (orient && typeof orient.unlock === "function") {
-        try { orient.unlock(); } catch { /* ignore */ }
+        try { orient.unlock(); } catch {/* ignore */}
       }
     };
   }, [open, media, onClose]);
+
+  // Persiste preferência
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, selected); } catch {/* ignore */}
+  }, [selected]);
 
   const showOverlay = () => {
     setOverlayVisible(true);
@@ -72,22 +116,49 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
     };
   }, [open, iframeLoaded]);
 
-  // Detecta bloqueio do iframe (X-Frame-Options/CSP do provedor) — timeout 4s sem load
+  // Provedor ativo agora
+  const activeProvider = useMemo(() => {
+    if (selected !== AUTO) {
+      return STREAM_PROVIDERS.find((p) => p.id === selected) ?? STREAM_PROVIDERS[0];
+    }
+    return orderedRef.current[autoIndex] ?? STREAM_PROVIDERS[0];
+  }, [selected, autoIndex]);
+
+  const src = useMemo(() => {
+    if (!media) return "";
+    const ep = episode ? { season: (episode as any).season, number: episode.number } : null;
+    return activeProvider.build(media, ep);
+  }, [media, episode, activeProvider]);
+
+  // Quando trocamos provider, resetamos estado de load
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [src]);
+
+  // Fallback automático: se iframe não carregar em ~6s no modo AUTO, tenta o próximo.
   useEffect(() => {
     if (!open || !media) return;
     if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
     blockTimerRef.current = window.setTimeout(() => {
-      if (!iframeLoaded) {
-        setIframeBlocked(true);
-        // log diagnóstico
-        // eslint-disable-next-line no-console
-        console.warn("[VideoPlayer] iframe não carregou em 4s — provavelmente bloqueado por X-Frame-Options/CSP do provedor.");
+      if (iframeLoaded) return;
+      // Marca atual como instável
+      markUnhealthy(activeProvider.id);
+      if (selected === AUTO) {
+        const next = autoIndex + 1;
+        if (next < orderedRef.current.length) {
+          setSwitching(true);
+          setAutoIndex(next);
+          window.setTimeout(() => setSwitching(false), 600);
+        } else {
+          setAllFailed(true);
+        }
       }
-    }, 4000);
+      // Em modo manual, deixa o usuário ver a tela "bloqueado pelo provedor"
+    }, 6000);
     return () => {
       if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
     };
-  }, [open, media, iframeLoaded]);
+  }, [open, media, src, iframeLoaded, activeProvider.id, selected, autoIndex]);
 
   useEffect(() => {
     if (!open || !media || !isExplorer) return;
@@ -128,14 +199,27 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
 
   const lockedFree = isExplorer && !media.freeForExplorer;
   const reachedLimit = isExplorer && explorerBlock?.blocked && explorerBlock?.reason;
-  const src = buildEmbedUrl(media, episode ?? null);
   const title = episode ? `${media.title} • ${episode.title}` : media.title;
-  const noServer = !src;
 
   const remaining =
     isExplorer && media.type === "movie"
       ? Math.max(0, EXPLORER_LIMITS.movieSeconds - elapsed)
       : null;
+
+  const tryAgain = () => {
+    setAllFailed(false);
+    setIframeLoaded(false);
+    setAutoIndex(0);
+    orderedRef.current = orderedProviders();
+  };
+
+  const pickServer = (id: Selected) => {
+    setSelected(id);
+    setServerMenuOpen(false);
+    setAllFailed(false);
+    setIframeLoaded(false);
+    if (id === AUTO) setAutoIndex(0);
+  };
 
   return (
     <div
@@ -146,7 +230,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
       onMouseMove={showOverlay}
       onTouchStart={showOverlay}
     >
-      {/* Overlay */}
+      {/* Overlay topo */}
       <div
         className={cn(
           "absolute top-0 inset-x-0 z-20 transition-opacity duration-500",
@@ -168,14 +252,60 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
             <h2 className="font-display text-base md:text-lg text-white truncate drop-shadow-lg">{title}</h2>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 relative">
             {remaining != null && !lockedFree && !reachedLimit && (
               <div className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-white">
                 <Clock className="h-3 w-3" />
                 {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
               </div>
             )}
-            <div className="w-[88px] sm:hidden" aria-hidden />
+
+            {/* Seletor de servidor */}
+            {!lockedFree && !reachedLimit && (
+              <div className="relative">
+                <button
+                  onClick={() => setServerMenuOpen((v) => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/15 transition"
+                  aria-label="Trocar servidor"
+                >
+                  <Server className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {selected === AUTO ? "Automático" : activeProvider.label}
+                  </span>
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {serverMenuOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-52 rounded-xl bg-black/85 backdrop-blur-xl border border-white/10 shadow-elevated overflow-hidden"
+                    onMouseLeave={() => setServerMenuOpen(false)}
+                  >
+                    <button
+                      onClick={() => pickServer(AUTO)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-xs hover:bg-white/10 flex items-center justify-between",
+                        selected === AUTO && "bg-white/10"
+                      )}
+                    >
+                      <span>Automático</span>
+                      <span className="text-[10px] text-muted-foreground">Recomendado</span>
+                    </button>
+                    <div className="h-px bg-white/5" />
+                    {STREAM_PROVIDERS.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => pickServer(p.id)}
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-xs hover:bg-white/10",
+                          selected === p.id && "bg-white/10"
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -204,60 +334,77 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
               onClick: () => { onClose(); navigate("/signup"); },
             }}
           />
-        ) : noServer ? (
+        ) : allFailed ? (
+          <div className="absolute inset-0 z-30 grid place-items-center bg-black px-6">
+            <div className="max-w-md text-center">
+              <div className="mx-auto mb-4 h-16 w-16 grid place-items-center rounded-full bg-amber-500/10 text-amber-400">
+                <AlertTriangle className="h-8 w-8" />
+              </div>
+              <h3 className="font-display text-2xl tracking-wide mb-2">Problema temporário</h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                Tivemos um problema temporário ao carregar este conteúdo. Todos os servidores estão indisponíveis no momento. Tente novamente em alguns minutos.
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={tryAgain}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary-glow transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Tentar novamente
+                </button>
+                <button
+                  onClick={onClose}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-white/10 text-white text-sm font-semibold hover:bg-white/15 transition-colors border border-white/10"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : !src ? (
           <PlayerMessage icon={<Tv className="h-12 w-12" />} title="Player indisponível" description="Não foi possível carregar o vídeo no momento." />
         ) : (
           <>
-            {!iframeBlocked && (
-              <div
-                className={cn(
-                  "absolute inset-0 z-10 grid place-items-center bg-black transition-opacity duration-500",
-                  iframeLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
-                )}
-              >
-                <LoadingSpinner label="Carregando conteúdo..." />
+            <div
+              className={cn(
+                "absolute inset-0 z-10 grid place-items-center bg-black transition-opacity duration-500",
+                iframeLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+              )}
+            >
+              <LoadingSpinner
+                label={
+                  switching
+                    ? "Trocando automaticamente para outro servidor…"
+                    : `Carregando via ${activeProvider.label}…`
+                }
+              />
+            </div>
+
+            {/* Aviso discreto: se manual e demora, oferece abrir em nova aba */}
+            {selected !== AUTO && !iframeLoaded && (
+              <div className="absolute bottom-4 right-4 z-20">
+                <a
+                  href={src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white text-xs backdrop-blur border border-white/15"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Abrir em nova aba
+                </a>
               </div>
             )}
 
-            {iframeBlocked && (
-              <div className="absolute inset-0 z-30 grid place-items-center bg-black px-6">
-                <div className="max-w-md text-center">
-                  <div className="mx-auto mb-4 h-16 w-16 grid place-items-center rounded-full bg-amber-500/10 text-amber-400">
-                    <AlertTriangle className="h-8 w-8" />
-                  </div>
-                  <h3 className="font-display text-2xl tracking-wide mb-2">Player bloqueado pelo provedor</h3>
-                  <p className="text-sm text-muted-foreground mb-5">
-                    O servidor de vídeo (VidSrc) não permite reprodução dentro do preview do Lovable.
-                    Abra em uma nova aba para assistir normalmente — funcionará no app publicado.
-                  </p>
-                  <a
-                    href={src!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary-glow transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Abrir player em nova aba
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {/* Container 16:9 — em mobile usa 56.25vw para garantir o vídeo deitado. */}
             <div
               className="relative w-full"
-              style={{
-                maxWidth: "100vw",
-                aspectRatio: "16 / 9",
-              }}
+              style={{ maxWidth: "100vw", aspectRatio: "16 / 9" }}
             >
               <iframe
                 key={src}
-                src={src!}
+                src={src}
                 title={title}
                 onLoad={() => {
                   setIframeLoaded(true);
-                  setIframeBlocked(false);
                   if (blockTimerRef.current) window.clearTimeout(blockTimerRef.current);
                 }}
                 referrerPolicy="no-referrer"
@@ -275,7 +422,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
 };
 
 const LoadingSpinner = ({ label }: { label: string }) => (
-  <div className="flex flex-col items-center gap-5 animate-fade-in">
+  <div className="flex flex-col items-center gap-5 animate-fade-in px-6 text-center">
     <div className="relative h-14 w-14">
       <div className="absolute inset-0 rounded-full border-2 border-white/10" />
       <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-white border-r-white/60 animate-spin" />

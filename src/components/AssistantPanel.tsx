@@ -298,10 +298,11 @@ export function AssistantPanel({
                   )}
                 >
                   <div>{m.content || (sending && !isUser && idx === messages.length - 1 ? "…" : "")}</div>
-                  {m.content && (
+                  {m.content && !isUser && (
                     <button
+                      type="button"
                       onClick={() => copy(m.content, idx)}
-                      className="mt-1.5 opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-opacity"
+                      className="mt-2 inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
                       aria-label="Copiar mensagem"
                     >
                       {copiedIdx === idx ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
