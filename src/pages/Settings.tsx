@@ -901,7 +901,6 @@ function SupportSection() {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const [assistantMode, setAssistantMode] = useState<"support" | "expert">("support");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -980,25 +979,18 @@ function SupportSection() {
       </Card>
 
       <Card>
-        <Header icon={Headset} title="Assistente inteligente" desc="Tire dúvidas sobre o app ou peça recomendações de filmes e séries em conversa real." />
+        <Header icon={Sparkles} title="Assistente inteligente" desc="Uma IA única que entende sua intenção: suporte, recomendações, dúvidas do app — tudo na mesma conversa." />
         <div className="mt-3 flex flex-wrap gap-2">
           <button
-            onClick={() => { setAssistantMode("support"); setAssistantOpen(true); }}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium hover:bg-white/[0.08]"
-          >
-            <Headset className="h-3.5 w-3.5" />
-            Abrir suporte
-          </button>
-          <button
-            onClick={() => { setAssistantMode("expert"); setAssistantOpen(true); }}
+            onClick={() => setAssistantOpen(true)}
             className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium hover:bg-white/[0.08]"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Falar com o especialista
+            Abrir assistente
           </button>
         </div>
       </Card>
-      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} initialMode={assistantMode} />
+      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </>
   );
 }
