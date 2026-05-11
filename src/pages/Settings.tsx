@@ -824,44 +824,71 @@ function HistoryBucket({
     <div>
       <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2">{title}</p>
       <ul className="space-y-2">
-        {items.map((it) => {
-          const media = getMockMediaById(it.media_id);
-          const title = media?.title ?? `Título #${it.media_id}`;
-          const poster = media?.posterUrl;
-          const pct = Math.max(1, Math.min(100, it.progress_pct));
-          return (
-            <li key={it.id} className="flex items-center gap-3 rounded-xl border border-white/5 bg-background/40 p-2.5">
-              <div className="h-12 w-9 rounded-md overflow-hidden bg-white/5 shrink-0">
-                {poster ? <img src={poster} alt={title} className="h-full w-full object-cover" /> : null}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium truncate">
-                  {title}
-                  {it.media_type === "tv" && it.episode_number ? (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Ep. {it.episode_number}
-                    </span>
-                  ) : null}
-                </p>
-                <div className="mt-1.5 flex items-center gap-2">
-                  <div className="h-1 flex-1 rounded-full bg-white/5 overflow-hidden">
-                    <div className="h-full bg-white/40" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="text-[10px] text-muted-foreground tabular-nums w-9 text-right">~{pct}%</span>
-                </div>
-              </div>
-              <button
-                onClick={() => onRemove(it.id)}
-                className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 shrink-0"
-                aria-label="Remover do histórico"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </li>
-          );
-        })}
+        {items.map((it) => (
+          <HistoryRow key={it.id} item={it} onRemove={onRemove} />
+        ))}
       </ul>
     </div>
+  );
+}
+
+// Cache em memória para evitar refetch ao reordenar/rerender.
+const mediaMetaCache = new Map<string, { title: string; poster: string | null }>();
+
+function HistoryRow({ item, onRemove }: { item: any; onRemove: (id: string) => void }) {
+  const cacheKey = `${item.media_type}:${item.media_id}`;
+  const cached = mediaMetaCache.get(cacheKey);
+  const [meta, setMeta] = useState<{ title: string; poster: string | null } | null>(cached ?? null);
+
+  useEffect(() => {
+    if (cached) return;
+    let cancel = false;
+    fetchMediaUnknown(item.media_id)
+      .then((m: Media | null) => {
+        if (cancel || !m) return;
+        const data = { title: m.title, poster: m.posterUrl ?? null };
+        mediaMetaCache.set(cacheKey, data);
+        setMeta(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [cacheKey, cached, item.media_id]);
+
+  const title = meta?.title ?? "Carregando…";
+  const poster = meta?.poster;
+  const pct = Math.max(1, Math.min(100, item.progress_pct));
+
+  return (
+    <li className="flex items-center gap-3 rounded-xl border border-white/5 bg-background/40 p-2.5">
+      <div className="h-12 w-9 rounded-md overflow-hidden bg-white/5 shrink-0">
+        {poster ? <img src={poster} alt={title} className="h-full w-full object-cover" /> : null}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium truncate">
+          {title}
+          {item.media_type === "tv" && item.episode_number ? (
+            <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+              Ep. {item.episode_number}
+            </span>
+          ) : null}
+        </p>
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="h-1 flex-1 rounded-full bg-white/5 overflow-hidden">
+            <div className="h-full bg-white/40" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="text-[10px] text-muted-foreground tabular-nums w-9 text-right">~{pct}%</span>
+        </div>
+      </div>
+      <button
+        onClick={() => onRemove(item.id)}
+        className="h-8 w-8 grid place-items-center rounded-full text-muted-foreground hover:text-foreground hover:bg-white/5 shrink-0"
+        aria-label="Remover do histórico"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </li>
   );
 }
 
