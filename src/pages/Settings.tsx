@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useWatchHistory } from "@/hooks/useWatchHistory";
-import { getMockMediaById } from "@/lib/mockData";
+import { fetchMediaUnknown } from "@/lib/tmdb";
+import type { Media } from "@/types/media";
 import { AssistantPanel } from "@/components/AssistantPanel";
 import { useNavigate } from "react-router-dom";
 import {
