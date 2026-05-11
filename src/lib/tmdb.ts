@@ -212,19 +212,54 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   return mapList(filtered, "tv", { minVotes: 100 });
 }
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: SOMENTE language=ja com gênero animação.
+  // Animes: SOMENTE language=ja com gênero animação. Hentai removido via without_keywords + filtro textual.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page, with_genres: 16, with_original_language: "ja",
+    without_keywords: "210024,158718,13141,287501",
     sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
+    include_adult: false,
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja");
+  const filtered = data.results.filter((r) => r.original_language === "ja" && !r.adult);
   return mapList(filtered, "tv", { minVotes: 50, allowJa: true });
 }
-export async function fetchReality(page = 1): Promise<Media[]> {
+// Reality removido: stub mantido vazio para retrocompatibilidade.
+export async function fetchReality(_page = 1): Promise<Media[]> {
+  return [];
+}
+
+// ============ NOVELAS ============
+// 400 internacionais (pt/es/en/ko, soap opera) + 400 turcas (drama tr).
+// Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
+export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
+  // Alterna idioma por página para diversificar.
+  const langs = ["pt", "es", "en", "ko"];
+  const lang = langs[(page - 1) % langs.length];
+  const innerPage = Math.floor((page - 1) / langs.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 10764, sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
+    page: innerPage, with_genres: 10766, with_original_language: lang,
+    sort_by: "popularity.desc", "vote_count.gte": 50,
+    "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
   });
   return mapList(data.results, "tv", { minVotes: 50 });
+}
+export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_original_language: "tr", with_genres: 18,
+    sort_by: "popularity.desc", "vote_count.gte": 20,
+    "first_air_date.lte": TODAY,
+  });
+  // Turco não está em ALLOWED_AUDIO_LANGS — bypass via mapList allowJa não cabe;
+  // usamos mapItem direto com filtros mínimos.
+  const genres = await loadGenres();
+  return data.results
+    .filter((i) => qualityFilter(i, 20))
+    .filter((i) => isReleased(i))
+    .map((i) => mapItem(i, "tv", genres));
+}
+export async function fetchNovelas(page = 1): Promise<Media[]> {
+  // Combina os dois blocos alternando.
+  if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
+  return fetchNovelasTurkish(page / 2);
 }
 export async function fetchModernClassics(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
