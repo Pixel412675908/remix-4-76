@@ -150,3 +150,32 @@ Resultado: usuário pode "Adicionar à tela inicial" no Android/iOS e abrir como
 ✅ Logo "STREAMFLIX" nunca corta
 ✅ App instalável como PWA no celular/desktop
 ✅ Login com profundidade visual, textura, identidade própria — não parece IA genérico
+
+---
+
+## Arquitetura Multi-Provider + Addons (em produção)
+
+Inspirada em AIOStreams, Stremio Web e Stremio Addons List — extraído **só o essencial**, sem copiar branding nem código pesado.
+
+```
+src/lib/providers/
+  types.ts         — Provider, MediaRequest, capabilities, health snapshot
+  registry.ts      — register/list/candidatesFor — ordena por (saúde, prioridade, score)
+  health.ts        — EWMA + cooldown 5min (blacklist suave) + reportSuccess/Failure
+  builtin/
+    vidsrc.ts      — priority 10
+    autoembed.ts   — priority 20
+    twoembed.ts    — priority 30
+    superembed.ts  — priority 40
+  index.ts         — bootstrap idempotente
+
+src/lib/addons/
+  types.ts         — Addon { id, name, version, providers[], builtin }
+  registry.ts      — registerAddon/setAddonEnabled persiste em localStorage
+  index.ts         — registra "core" addon com os 4 builtins
+```
+
+- `src/lib/streamProviders.ts` virou fachada fina sobre o registry — `VideoPlayer` continua funcionando sem mudança de API.
+- O player agora reporta `markHealthy()` quando o iframe carrega, alimentando o EWMA do health tracker.
+- Adicionar um novo provedor = criar um arquivo em `providers/builtin/` e registrar via `registerProvider()` ou empacotar num novo `Addon`.
+- Próximo passo natural: UI em `Settings` para listar/ativar addons e providers individualmente.
