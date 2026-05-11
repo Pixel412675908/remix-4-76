@@ -38,6 +38,7 @@ export const Navbar = () => {
       { label: "Início", to: "/" },
       { label: "Filmes", to: "/browse/movies" },
       { label: "Séries", to: "/browse/series" },
+      { label: "Novelas", to: "/novelas" },
       { label: "Animes", to: "/animes" },
       { label: "Desenhos", to: "/desenhos" },
       { label: "Coleções", to: "/colecoes" },
