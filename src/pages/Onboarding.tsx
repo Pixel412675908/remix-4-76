@@ -86,10 +86,9 @@ const Onboarding = () => {
     try {
       const patch: Partial<Account> = {
         account_type: draft.account_type,
-        allow_adult:
-          draft.account_type === "adult" &&
-          (draft.content_filters.includes("mature") ||
-            draft.content_filters.includes("sensitive")),
+        // Conta adulta/teen recebem +18 geral ATIVADO por padrão.
+        // Conteúdo explícito permanece OFF (configurável depois em Configurações).
+        allow_adult: draft.account_type !== "kids",
         favorite_genres: draft.favorite_genres,
         content_filters: draft.content_filters,
         content_types: draft.content_types,
