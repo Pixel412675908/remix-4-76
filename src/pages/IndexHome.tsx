@@ -166,7 +166,7 @@ const IndexHome = () => {
               onPlay={(m) => setPlaying(m)}
             />
           ))}
-          <div ref={sentinelRef} className="h-12" aria-hidden />
+          
         </div>
       </main>
 
