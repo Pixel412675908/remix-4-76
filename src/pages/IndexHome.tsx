@@ -33,7 +33,7 @@ const IndexHome = () => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [showExplorerBanner, setShowExplorerBanner] = useState(true);
   const intervalRef = useRef<number | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  
 
   // Define rows visíveis baseado em preferências de maturidade
   const visibleRowDefs = useMemo<RowDef[]>(() => {
