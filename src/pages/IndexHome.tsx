@@ -106,57 +106,7 @@ const IndexHome = () => {
 
   const heroMedia = heroCandidates[heroIdx];
 
-  // Scroll infinito: carrega +1 página em todas as rows incompletas quando sentinel visível
-  const loadMore = useCallback(async () => {
-    setRows((prev) => {
-      const next = prev.map((r) => (r.done || r.loading ? r : { ...r, loading: true }));
-      // dispara em paralelo
-      next.forEach((r, idx) => {
-        if (r.done || prev[idx].loading) return;
-        const nextPage = r.page + 1;
-        if (nextPage > 5) {
-          // limite razoável p/ não estourar quota TMDB
-          setRows((curr) => curr.map((cr, i) => (i === idx ? { ...cr, loading: false, done: true } : cr)));
-          return;
-        }
-        r.def
-          .loader(nextPage)
-          .then((items) => {
-            setRows((curr) =>
-              curr.map((cr, i) =>
-                i === idx
-                  ? {
-                      ...cr,
-                      items: [...cr.items, ...items],
-                      page: nextPage,
-                      loading: false,
-                      done: items.length === 0,
-                    }
-                  : cr
-              )
-            );
-          })
-          .catch(() => {
-            setRows((curr) =>
-              curr.map((cr, i) => (i === idx ? { ...cr, loading: false, done: true } : cr))
-            );
-          });
-      });
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!sentinelRef.current) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { rootMargin: "600px" }
-    );
-    obs.observe(sentinelRef.current);
-    return () => obs.disconnect();
-  }, [loadMore]);
+  // Scroll infinito desativado: cada row exibe exatamente 10 itens (regra do produto).
 
   return (
     <div className="min-h-screen bg-background">
