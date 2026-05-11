@@ -535,31 +535,38 @@ function ContentSection() {
   const { account, updateAccount } = useAuth();
   if (!settings) return null;
 
+  // Contas Kids: jamais expor configurações de +18 ou conteúdo explícito.
+  const isKids = account?.account_type === "kids";
+
   return (
     <>
-      <Card>
-        <Header
-          icon={Shield}
-          title="Conteúdo +18 (geral)"
-          desc="Permite títulos com violência forte, drogas, linguagem adulta ou nudez leve. Ex: The Boys, Game of Thrones."
-        />
-        <Toggle
-          value={!!account?.allow_adult}
-          onChange={(v) => updateAccount({ allow_adult: v })}
-        />
-      </Card>
+      {!isKids && (
+        <>
+          <Card>
+            <Header
+              icon={Shield}
+              title="Conteúdo +18 (geral)"
+              desc="Permite títulos com violência forte, drogas, linguagem adulta ou nudez leve. Ex: The Boys, Game of Thrones."
+            />
+            <Toggle
+              value={account?.allow_adult ?? true}
+              onChange={(v) => updateAccount({ allow_adult: v })}
+            />
+          </Card>
 
-      <Card>
-        <Header
-          icon={Lock}
-          title="Conteúdo adulto explícito"
-          desc="Permite títulos com sexo explícito (ex: 365 Dias). Desativado por padrão."
-        />
-        <Toggle
-          value={!!(account as any)?.allow_explicit}
-          onChange={(v) => updateAccount({ allow_explicit: v } as any)}
-        />
-      </Card>
+          <Card>
+            <Header
+              icon={Lock}
+              title="Conteúdo adulto explícito"
+              desc="Permite títulos com sexo explícito (ex: 365 Dias). Desativado por padrão."
+            />
+            <Toggle
+              value={!!(account as any)?.allow_explicit}
+              onChange={(v) => updateAccount({ allow_explicit: v } as any)}
+            />
+          </Card>
+        </>
+      )}
 
       <Card>
         <Header icon={Subtitles} title={t("set.subtitles")} desc={t("set.subtitles.desc")} />
