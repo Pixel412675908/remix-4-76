@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, Headphones, Globe2 } from "lucide-react";
+import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
