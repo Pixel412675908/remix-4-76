@@ -47,15 +47,25 @@ export function StreamWorldProvider({ children }: { children: ReactNode }) {
         safeRefresh = session.refresh_token;
       }
     } catch {
-      /* sem sessão é ok — abre em modo demo */
+      /* sessão indisponível */
+    }
+
+    // Sem sessão real => não abre. StreamWorld não tem mais modo demo.
+    if (!safeAccess || !safeRefresh) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      return;
     }
 
     const u = new URL(STREAMWORLD_BASE);
-    if (safeAccess) u.searchParams.set("access_token", safeAccess);
-    if (safeRefresh) u.searchParams.set("refresh_token", safeRefresh);
+    u.searchParams.set("access_token", safeAccess);
+    u.searchParams.set("refresh_token", safeRefresh);
     u.searchParams.set("source", "streamflix");
+    u.searchParams.set("mode", "live");
+    u.searchParams.set("demo", "0");
     setUrl(u.toString());
-    setTokens(safeAccess && safeRefresh ? { access_token: safeAccess, refresh_token: safeRefresh } : null);
+    setTokens({ access_token: safeAccess, refresh_token: safeRefresh });
     setIsOpen(true);
   }, []);
 
