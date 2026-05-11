@@ -212,15 +212,24 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   return mapList(filtered, "tv", { minVotes: 100 });
 }
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: SOMENTE language=ja com gênero animação. Hentai removido via without_keywords + filtro textual.
+  // Animes: filtro mínimo conforme regra do produto. Hentai/adulto bloqueado
+  // exclusivamente pela flag include_adult=false do TMDB. Sem filtros extras.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 16, with_original_language: "ja",
-    without_keywords: "210024,158718,13141,287501",
-    sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
+    page,
+    with_genres: 16,
+    with_original_language: "ja",
     include_adult: false,
+    "vote_count.gte": 10,
+    without_genres: 10749,
+    sort_by: "popularity.desc",
   });
   const filtered = data.results.filter((r) => r.original_language === "ja" && !r.adult);
-  return mapList(filtered, "tv", { minVotes: 50, allowJa: true });
+  return mapList(filtered, "tv", {
+    minVotes: 10,
+    requireReleased: false,
+    allowJa: true,
+    allowHentai: true,
+  });
 }
 // Reality removido: stub mantido vazio para retrocompatibilidade.
 export async function fetchReality(_page = 1): Promise<Media[]> {
