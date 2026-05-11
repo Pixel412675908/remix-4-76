@@ -1,6 +1,6 @@
 // Home autenticado — TMDB real + scroll infinito por row + filtros +18.
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Compass, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
