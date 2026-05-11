@@ -1,31 +1,27 @@
-// AI assistant chat widget — two modes (support / expert).
-// Streams from Supabase Edge Function `chat-assistant`. Neutral palette, no red.
+// AI assistant chat — IA única e contextual (sem modos).
+// Streams from Supabase Edge Function `chat-assistant`.
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Copy, Headset, Loader2, Send, Sparkles, X, Check } from "lucide-react";
+import { Copy, Loader2, Send, Sparkles, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
-type Mode = "support" | "expert";
 type Msg = { role: "user" | "assistant"; content: string };
 
-const STORAGE_KEY = "streamflix:chat-history";
+const STORAGE_KEY = "streamflix:chat-history-v2";
 
-function loadHistory(): Record<Mode, Msg[]> {
+function loadHistory(): Msg[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { support: [], expert: [] };
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return {
-      support: Array.isArray(parsed.support) ? parsed.support : [],
-      expert: Array.isArray(parsed.expert) ? parsed.expert : [],
-    };
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return { support: [], expert: [] };
+    return [];
   }
 }
 
-function saveHistory(history: Record<Mode, Msg[]>) {
+function saveHistory(history: Msg[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
   } catch {
@@ -36,14 +32,11 @@ function saveHistory(history: Record<Mode, Msg[]>) {
 export function AssistantPanel({
   open,
   onClose,
-  initialMode = "support",
 }: {
   open: boolean;
   onClose: () => void;
-  initialMode?: Mode;
 }) {
-  const [mode, setMode] = useState<Mode>(initialMode);
-  const [history, setHistory] = useState<Record<Mode, Msg[]>>(() => loadHistory());
+  const [messages, setMessages] = useState<Msg[]>(() => loadHistory());
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -51,11 +44,7 @@ export function AssistantPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const messages = history[mode];
-
-  useEffect(() => {
-    saveHistory(history);
-  }, [history]);
+  useEffect(() => { saveHistory(messages); }, [messages]);
 
   useEffect(() => {
     if (!open) return;
@@ -64,7 +53,6 @@ export function AssistantPanel({
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Acompanha visualViewport pra popup encolher quando o teclado abre (não subir)
   useEffect(() => {
     if (!open) return;
     const vv = window.visualViewport;
@@ -83,22 +71,20 @@ export function AssistantPanel({
     if (open && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [open, mode, messages.length]);
+  }, [open, messages.length]);
 
-  useEffect(() => {
-    return () => abortRef.current?.abort();
-  }, []);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-  const updateAssistant = (modeKey: Mode, chunk: string) => {
-    setHistory((prev) => {
-      const list = prev[modeKey].slice();
+  const updateAssistant = (chunk: string) => {
+    setMessages((prev) => {
+      const list = prev.slice();
       const last = list[list.length - 1];
       if (last && last.role === "assistant") {
         list[list.length - 1] = { ...last, content: last.content + chunk };
       } else {
         list.push({ role: "assistant", content: chunk });
       }
-      return { ...prev, [modeKey]: list };
+      return list;
     });
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -110,8 +96,8 @@ export function AssistantPanel({
     const trimmed = input.trim();
     if (!trimmed || sending) return;
     const userMsg: Msg = { role: "user", content: trimmed };
-    const modeKey = mode;
-    setHistory((prev) => ({ ...prev, [modeKey]: [...prev[modeKey], userMsg] }));
+    const next = [...messages, userMsg];
+    setMessages(next);
     setInput("");
     setSending(true);
 
@@ -128,19 +114,13 @@ export function AssistantPanel({
         },
         signal: controller.signal,
         body: JSON.stringify({
-          mode: modeKey,
-          messages: [...history[modeKey], userMsg].map((m) => ({ role: m.role, content: m.content })),
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
 
       if (!resp.ok) {
         let msg = "Erro na comunicação com o assistente.";
-        try {
-          const j = await resp.json();
-          if (j?.error) msg = j.error;
-        } catch {
-          /* ignore */
-        }
+        try { const j = await resp.json(); if (j?.error) msg = j.error; } catch {/* ignore */}
         toast({ title: "Assistente", description: msg, variant: "destructive" });
         setSending(false);
         return;
@@ -168,14 +148,11 @@ export function AssistantPanel({
           if (!line || line.startsWith(":")) continue;
           if (!line.startsWith("data: ")) continue;
           const json = line.slice(6).trim();
-          if (json === "[DONE]") {
-            done = true;
-            break;
-          }
+          if (json === "[DONE]") { done = true; break; }
           try {
             const parsed = JSON.parse(json);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) updateAssistant(modeKey, content);
+            if (content) updateAssistant(content);
           } catch {
             textBuffer = line + "\n" + textBuffer;
             break;
@@ -194,12 +171,7 @@ export function AssistantPanel({
 
   const copy = async (text: string, idx: number) => {
     const tryCopy = async () => {
-      try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text);
-          return true;
-        }
-      } catch {/* fallthrough */}
+      try { if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; } } catch {/* fallthrough */}
       try {
         const ta = document.createElement("textarea");
         ta.value = text;
@@ -221,25 +193,18 @@ export function AssistantPanel({
     }
   };
 
-  const clearMode = () => {
-    setHistory((prev) => ({ ...prev, [mode]: [] }));
-  };
+  const clearAll = () => setMessages([]);
 
   if (!open) return null;
 
-  // Mobile: usa altura do visualViewport (encolhe quando o teclado abre, sem subir).
-  // Desktop: limite normal de 640px.
   const dialogHeightStyle = viewportH
-    ? { height: `${Math.min(viewportH, viewportH)}px`, maxHeight: `${viewportH}px` }
+    ? { height: `${viewportH}px`, maxHeight: `${viewportH}px` }
     : { maxHeight: "100dvh" };
 
   return (
     <div
       className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in"
-      onTouchMove={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
+      onTouchMove={(e) => { e.preventDefault(); e.stopPropagation(); }}
       style={{ touchAction: "none", overscrollBehavior: "contain" }}
     >
       <div
@@ -249,20 +214,13 @@ export function AssistantPanel({
         onClick={(e) => e.stopPropagation()}
         style={{ ...dialogHeightStyle, touchAction: "auto", overscrollBehavior: "contain" }}
       >
-        {/* Header */}
         <header className="flex items-center gap-3 px-4 py-3 border-b border-white/5 bg-background/40">
           <span className="grid h-9 w-9 place-items-center rounded-full bg-white/5 border border-white/10 shrink-0">
-            {mode === "support" ? (
-              <Headset className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-            ) : (
-              <Sparkles className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-            )}
+            <Sparkles className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold leading-tight">Assistente StreamFlix</p>
-            <p className="text-[11px] text-muted-foreground">
-              {mode === "support" ? "Suporte do app, conta e dúvidas." : "Recomendações de filmes e séries."}
-            </p>
+            <p className="text-[11px] text-muted-foreground">Suporte, recomendações e tudo do app — em uma só conversa.</p>
           </div>
           <button
             onClick={onClose}
@@ -273,35 +231,10 @@ export function AssistantPanel({
           </button>
         </header>
 
-        {/* Mode tabs */}
-        <div className="flex items-center gap-1 px-3 pt-3">
-          {(["support", "expert"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  "flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-colors",
-                  active
-                    ? "bg-white/10 text-foreground border-white/20"
-                    : "text-muted-foreground border-white/5 hover:text-foreground hover:bg-white/5"
-                )}
-              >
-                {m === "support" ? <Headset className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {m === "support" ? "Suporte" : "Especialista"}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {messages.length === 0 && (
             <div className="h-full grid place-items-center text-center text-xs text-muted-foreground px-6">
-              {mode === "support"
-                ? "Pergunte sobre conta, login, perfil, configurações ou problemas no app."
-                : "Diga um título que você gostou ou um clima — ex: 'Algo sombrio como True Detective'."}
+              Pergunte o que quiser — uma dúvida do app, um problema no player, ou peça uma recomendação tipo "algo sombrio como Dark".
             </div>
           )}
           {messages.map((m, idx) => {
@@ -310,7 +243,7 @@ export function AssistantPanel({
               <div key={idx} className={cn("flex", isUser ? "justify-end" : "justify-start")}>
                 <div
                   className={cn(
-                    "group max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words",
+                    "group max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap break-words leading-relaxed",
                     isUser
                       ? "bg-white/10 text-foreground border border-white/10"
                       : "bg-white/[0.04] text-foreground border border-white/5"
@@ -342,11 +275,10 @@ export function AssistantPanel({
           )}
         </div>
 
-        {/* Footer */}
         {messages.length > 0 && (
           <div className="px-4 pb-1 pt-1 flex justify-end">
             <button
-              onClick={clearMode}
+              onClick={clearAll}
               className="text-[10px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
             >
               Limpar conversa
@@ -363,7 +295,7 @@ export function AssistantPanel({
                 send(e as unknown as FormEvent);
               }
             }}
-            placeholder={mode === "support" ? "Como posso ajudar?" : "Conte um título que gostou…"}
+            placeholder="Pergunte qualquer coisa…"
             rows={1}
             className="flex-1 max-h-32 resize-none bg-background/60 border border-white/10 rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 focus:ring-white/30 placeholder:text-muted-foreground"
           />
