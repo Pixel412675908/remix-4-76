@@ -334,15 +334,15 @@ export interface RowDef {
 }
 
 export const ALL_ROWS: RowDef[] = [
-  { id: "trending", title: "Em Alta Hoje", loader: fetchTrending },
+  { id: "trending", title: "Em Alta Esta Semana", loader: fetchTrending },
+  { id: "now", title: "Lançamentos", loader: fetchNowPlaying },
   { id: "movies", title: "Filmes Populares", loader: fetchPopularMovies },
   { id: "series", title: "Séries Populares", loader: fetchPopularTv },
-  { id: "now", title: "Lançamentos", loader: fetchNowPlaying },
+  { id: "novelas", title: "Novelas em Destaque", loader: fetchNovelas },
   { id: "anime", title: "Animes em Alta", loader: fetchAnime },
   { id: "animation", title: "Desenhos Animados", loader: fetchAnimation },
-  { id: "classics", title: "Clássicos Modernos", loader: fetchModernClassics },
   { id: "docs", title: "Documentários", loader: fetchDocumentaries },
-  { id: "reality", title: "Reality Shows", loader: fetchReality },
+  { id: "classics", title: "Clássicos Modernos", loader: fetchModernClassics },
   { id: "mature", title: "Conteúdo +18", loader: fetchAdultMovies, audience: "mature" },
   { id: "explicit", title: "Adulto Explícito", loader: fetchExplicitMovies, audience: "explicit" },
 ];
@@ -350,12 +350,40 @@ export const ALL_ROWS: RowDef[] = [
 export async function fetchHomeRowsTmdb(): Promise<ContentRow[]> {
   const baseRows = ALL_ROWS.filter((r) => !r.audience || r.audience === "all");
   const items = await Promise.all(baseRows.map((r) => r.loader(1).catch(() => [])));
-  return baseRows.map((r, i) => ({ id: r.id, title: r.title, items: items[i] }));
+  return baseRows.map((r, i) => ({ id: r.id, title: r.title, items: items[i].slice(0, 10) }));
 }
 
 export async function fetchHeroPool(): Promise<Media[]> {
-  const trending = await fetchTrending();
-  return trending.slice(0, 5);
+  // 6 destaques pra rotação do hero.
+  const [p1, p2] = await Promise.all([fetchTrending(1), fetchTrending(2)]);
+  return [...p1, ...p2].slice(0, 6);
+}
+
+// ============ Contadores totais por categoria ============
+async function totalFor(path: string, params: Record<string, string | number> = {}): Promise<number> {
+  try {
+    const data = await tget<{ total_results: number }>(path, { ...params, page: 1 });
+    return data.total_results ?? 0;
+  } catch { return 0; }
+}
+export async function countMovies(): Promise<number> {
+  return totalFor("/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100 });
+}
+export async function countSeries(): Promise<number> {
+  return totalFor("/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, without_genres: 10764 });
+}
+export async function countAnime(): Promise<number> {
+  return totalFor("/discover/tv", { with_genres: 16, with_original_language: "ja" });
+}
+export async function countAnimation(): Promise<number> {
+  return totalFor("/discover/tv", { with_genres: 16, without_original_language: "ja" });
+}
+export async function countNovelas(): Promise<number> {
+  const [a, b] = await Promise.all([
+    totalFor("/discover/tv", { with_genres: 10766 }),
+    totalFor("/discover/tv", { with_original_language: "tr", with_genres: 18 }),
+  ]);
+  return a + b;
 }
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {
