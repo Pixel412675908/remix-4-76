@@ -69,7 +69,7 @@ const IndexHome = () => {
     };
   }, [visibleRowDefs]);
 
-  // Filtra por maturidade
+  // Filtra por maturidade e limita a exatamente 10 por row
   const filteredRows = useMemo(() => {
     return rows
       .map((r) => ({
@@ -77,7 +77,7 @@ const IndexHome = () => {
         items: sortMediaForAccount(
           r.items.filter((m) => canWatch(m, activeProfile, account)),
           account
-        ),
+        ).slice(0, 10),
       }))
       .filter((r) => r.items.length > 0);
   }, [rows, account, activeProfile]);
