@@ -77,6 +77,7 @@ const App = () => (
                   <Route path="/browse/:category" element={<RequireAuth><Browse /></RequireAuth>} />
                   <Route path="/my-list" element={<RequireAuth><MyList /></RequireAuth>} />
                   <Route path="/animes" element={<RequireAuth><Animes /></RequireAuth>} />
+                  <Route path="/novelas" element={<RequireAuth><Novelas /></RequireAuth>} />
                   <Route path="/desenhos" element={<RequireAuth><Desenhos /></RequireAuth>} />
                   <Route path="/em-breve" element={<RequireAuth><EmBreve /></RequireAuth>} />
                   <Route path="/colecoes" element={<RequireAuth><Colecoes /></RequireAuth>} />
