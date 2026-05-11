@@ -9,6 +9,7 @@ import "@/lib/addons"; // bootstrap (idempotente) — registra core providers
 import {
   candidatesFor,
   isProviderEnabled,
+  listProviders,
 } from "@/lib/providers/registry";
 import {
   isAvailable,
@@ -32,8 +33,6 @@ function adapt(p: Provider): StreamProvider {
     build: (media, ep) => p.resolve({ media, episode: ep, preferredAudio: "pt" }).url,
   };
 }
-
-import { listProviders } from "@/lib/providers/registry";
 
 /** Snapshot ordenado por prioridade — registrado no bootstrap dos addons. */
 export const STREAM_PROVIDERS: StreamProvider[] = listProviders()
