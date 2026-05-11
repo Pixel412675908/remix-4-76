@@ -57,7 +57,8 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult|hentai|ecchi)\b/i;
+const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
