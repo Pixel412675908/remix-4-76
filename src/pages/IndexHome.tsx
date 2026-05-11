@@ -15,7 +15,7 @@ import { canWatch } from "@/lib/maturity";
 import { Media } from "@/types/media";
 import { cn } from "@/lib/utils";
 
-const HERO_INTERVAL = 9000;
+const HERO_INTERVAL = 6000;
 
 interface LoadedRow {
   def: RowDef;
