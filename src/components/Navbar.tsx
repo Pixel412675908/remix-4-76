@@ -201,16 +201,6 @@ export const Navbar = () => {
                         {t("nav.settings")}
                       </Link>
                       <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setAssistantOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors text-left"
-                      >
-                        <Headphones className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                        Suporte
-                      </button>
-                      <button
                         onClick={async () => {
                           setMenuOpen(false);
                           await signOut();
