@@ -24,6 +24,7 @@ import {
   STREAM_PROVIDERS,
   orderedProviders,
   markUnhealthy,
+  markHealthy,
   type StreamProviderId,
 } from "@/lib/streamProviders";
 
@@ -134,6 +135,11 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
   useEffect(() => {
     setIframeLoaded(false);
   }, [src]);
+
+  // Reporta sucesso ao registry quando o iframe efetivamente carrega.
+  useEffect(() => {
+    if (iframeLoaded) markHealthy(activeProvider.id);
+  }, [iframeLoaded, activeProvider.id]);
 
   // Fallback automático: se iframe não carregar em ~6s no modo AUTO, tenta o próximo.
   useEffect(() => {
