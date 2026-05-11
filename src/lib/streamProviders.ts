@@ -33,13 +33,13 @@ function adapt(p: Provider): StreamProvider {
   };
 }
 
-export const STREAM_PROVIDERS: StreamProvider[] = new Proxy([] as StreamProvider[], {
-  // Lista dinâmica — sempre reflete o registry atual.
-  get(_t, prop) {
-    const list = candidatesFor({ media: { id: 0, type: "movie" } as Media }).map(adapt);
-    return Reflect.get(list, prop as keyof StreamProvider[]);
-  },
-}) as StreamProvider[];
+import { listProviders } from "@/lib/providers/registry";
+
+/** Snapshot ordenado por prioridade — registrado no bootstrap dos addons. */
+export const STREAM_PROVIDERS: StreamProvider[] = listProviders()
+  .slice()
+  .sort((a, b) => a.priority - b.priority)
+  .map(adapt);
 
 export function markUnhealthy(id: StreamProviderId) {
   reportFailure(id);
