@@ -24,6 +24,7 @@ import Browse from "./pages/Browse.tsx";
 import Profile from "./pages/Profile.tsx";
 import Settings from "./pages/Settings.tsx";
 import Animes from "./pages/Animes.tsx";
+import Novelas from "./pages/Novelas.tsx";
 import Desenhos from "./pages/Desenhos.tsx";
 import EmBreve from "./pages/EmBreve.tsx";
 import Colecoes from "./pages/Colecoes.tsx";
