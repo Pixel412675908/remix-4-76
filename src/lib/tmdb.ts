@@ -57,7 +57,8 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult|hentai|ecchi)\b/i;
+const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
@@ -126,16 +127,24 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
-  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean }
+  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean }
 ): Promise<Media[]> {
   const genres = await loadGenres();
   const minVotes = opts?.minVotes ?? 50;
   const requireReleased = opts?.requireReleased ?? true;
   const allowJa = opts?.allowJa ?? false;
+  const allowReality = opts?.allowReality ?? false;
+  const allowHentai = opts?.allowHentai ?? false;
   return items
     .filter((i) => qualityFilter(i, minVotes))
     .filter((i) => (requireReleased ? isReleased(i) : true))
     .filter((i) => hasAcceptedAudio(i, allowJa))
+    .filter((i) => allowReality || !(i.genre_ids ?? []).includes(10764))
+    .filter((i) => {
+      if (allowHentai) return true;
+      const text = `${i.title ?? ""} ${i.name ?? ""} ${i.overview ?? ""}`;
+      return !HENTAI_KEYWORDS.test(text);
+    })
     .map((i) => mapItem(i, fallbackType, genres));
 }
 
@@ -168,8 +177,24 @@ export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   return mapList(data.results, "tv", { minVotes: 200 });
 }
 export async function fetchNowPlaying(page = 1): Promise<Media[]> {
-  const data = await tget<{ results: TmdbItem[] }>("/movie/now_playing", { page, region: REGION });
-  return mapList(data.results, "movie", { minVotes: 30 });
+  // Lançamentos: combinamos /movie/now_playing + /tv/on_the_air e filtramos
+  // somente conteúdo dos últimos 60 dias, ordenado do mais recente.
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [m, tv] = await Promise.all([
+    tget<{ results: TmdbItem[] }>("/movie/now_playing", { page, region: REGION }),
+    tget<{ results: TmdbItem[] }>("/tv/on_the_air", { page }),
+  ]);
+  const merged = [...m.results.map((r) => ({ ...r, media_type: "movie" as const })),
+                  ...tv.results.map((r) => ({ ...r, media_type: "tv" as const }))];
+  const recent = merged.filter((r) => {
+    const d = r.release_date || r.first_air_date || "";
+    return d >= sixtyDaysAgo && d <= TODAY;
+  }).sort((a, b) => {
+    const da = a.release_date || a.first_air_date || "";
+    const db = b.release_date || b.first_air_date || "";
+    return db.localeCompare(da);
+  });
+  return mapList(recent, undefined, { minVotes: 10 });
 }
 export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
@@ -187,19 +212,54 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   return mapList(filtered, "tv", { minVotes: 100 });
 }
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: SOMENTE language=ja com gênero animação.
+  // Animes: SOMENTE language=ja com gênero animação. Hentai removido via without_keywords + filtro textual.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page, with_genres: 16, with_original_language: "ja",
+    without_keywords: "210024,158718,13141,287501",
     sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
+    include_adult: false,
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja");
+  const filtered = data.results.filter((r) => r.original_language === "ja" && !r.adult);
   return mapList(filtered, "tv", { minVotes: 50, allowJa: true });
 }
-export async function fetchReality(page = 1): Promise<Media[]> {
+// Reality removido: stub mantido vazio para retrocompatibilidade.
+export async function fetchReality(_page = 1): Promise<Media[]> {
+  return [];
+}
+
+// ============ NOVELAS ============
+// 400 internacionais (pt/es/en/ko, soap opera) + 400 turcas (drama tr).
+// Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
+export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
+  // Alterna idioma por página para diversificar.
+  const langs = ["pt", "es", "en", "ko"];
+  const lang = langs[(page - 1) % langs.length];
+  const innerPage = Math.floor((page - 1) / langs.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 10764, sort_by: "popularity.desc", "vote_count.gte": 50, "first_air_date.lte": TODAY,
+    page: innerPage, with_genres: 10766, with_original_language: lang,
+    sort_by: "popularity.desc", "vote_count.gte": 50,
+    "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
   });
   return mapList(data.results, "tv", { minVotes: 50 });
+}
+export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_original_language: "tr", with_genres: 18,
+    sort_by: "popularity.desc", "vote_count.gte": 20,
+    "first_air_date.lte": TODAY,
+  });
+  // Turco não está em ALLOWED_AUDIO_LANGS — bypass via mapList allowJa não cabe;
+  // usamos mapItem direto com filtros mínimos.
+  const genres = await loadGenres();
+  return data.results
+    .filter((i) => qualityFilter(i, 20))
+    .filter((i) => isReleased(i))
+    .map((i) => mapItem(i, "tv", genres));
+}
+export async function fetchNovelas(page = 1): Promise<Media[]> {
+  // Combina os dois blocos alternando.
+  if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
+  return fetchNovelasTurkish(page / 2);
 }
 export async function fetchModernClassics(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
@@ -274,15 +334,15 @@ export interface RowDef {
 }
 
 export const ALL_ROWS: RowDef[] = [
-  { id: "trending", title: "Em Alta Hoje", loader: fetchTrending },
+  { id: "trending", title: "Em Alta Esta Semana", loader: fetchTrending },
+  { id: "now", title: "Lançamentos", loader: fetchNowPlaying },
   { id: "movies", title: "Filmes Populares", loader: fetchPopularMovies },
   { id: "series", title: "Séries Populares", loader: fetchPopularTv },
-  { id: "now", title: "Lançamentos", loader: fetchNowPlaying },
+  { id: "novelas", title: "Novelas em Destaque", loader: fetchNovelas },
   { id: "anime", title: "Animes em Alta", loader: fetchAnime },
   { id: "animation", title: "Desenhos Animados", loader: fetchAnimation },
-  { id: "classics", title: "Clássicos Modernos", loader: fetchModernClassics },
   { id: "docs", title: "Documentários", loader: fetchDocumentaries },
-  { id: "reality", title: "Reality Shows", loader: fetchReality },
+  { id: "classics", title: "Clássicos Modernos", loader: fetchModernClassics },
   { id: "mature", title: "Conteúdo +18", loader: fetchAdultMovies, audience: "mature" },
   { id: "explicit", title: "Adulto Explícito", loader: fetchExplicitMovies, audience: "explicit" },
 ];
@@ -290,12 +350,40 @@ export const ALL_ROWS: RowDef[] = [
 export async function fetchHomeRowsTmdb(): Promise<ContentRow[]> {
   const baseRows = ALL_ROWS.filter((r) => !r.audience || r.audience === "all");
   const items = await Promise.all(baseRows.map((r) => r.loader(1).catch(() => [])));
-  return baseRows.map((r, i) => ({ id: r.id, title: r.title, items: items[i] }));
+  return baseRows.map((r, i) => ({ id: r.id, title: r.title, items: items[i].slice(0, 10) }));
 }
 
 export async function fetchHeroPool(): Promise<Media[]> {
-  const trending = await fetchTrending();
-  return trending.slice(0, 5);
+  // 6 destaques pra rotação do hero.
+  const [p1, p2] = await Promise.all([fetchTrending(1), fetchTrending(2)]);
+  return [...p1, ...p2].slice(0, 6);
+}
+
+// ============ Contadores totais por categoria ============
+async function totalFor(path: string, params: Record<string, string | number> = {}): Promise<number> {
+  try {
+    const data = await tget<{ total_results: number }>(path, { ...params, page: 1 });
+    return data.total_results ?? 0;
+  } catch { return 0; }
+}
+export async function countMovies(): Promise<number> {
+  return totalFor("/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100 });
+}
+export async function countSeries(): Promise<number> {
+  return totalFor("/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, without_genres: 10764 });
+}
+export async function countAnime(): Promise<number> {
+  return totalFor("/discover/tv", { with_genres: 16, with_original_language: "ja" });
+}
+export async function countAnimation(): Promise<number> {
+  return totalFor("/discover/tv", { with_genres: 16, without_original_language: "ja" });
+}
+export async function countNovelas(): Promise<number> {
+  const [a, b] = await Promise.all([
+    totalFor("/discover/tv", { with_genres: 10766 }),
+    totalFor("/discover/tv", { with_original_language: "tr", with_genres: 18 }),
+  ]);
+  return a + b;
 }
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {

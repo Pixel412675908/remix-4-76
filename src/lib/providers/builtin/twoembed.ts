@@ -4,7 +4,7 @@ export const twoembedProvider: Provider = {
   id: "2embed",
   label: "2Embed",
   addonId: "core",
-  priority: 30,
+  priority: 20,
   capabilities: { movies: true, series: true, anime: true, cartoon: true, live: false },
   resolve: ({ media, episode }) => {
     const url = media.type === "movie"

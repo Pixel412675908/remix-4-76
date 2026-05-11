@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, Headphones, Globe2 } from "lucide-react";
+import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
@@ -38,6 +38,7 @@ export const Navbar = () => {
       { label: "Início", to: "/" },
       { label: "Filmes", to: "/browse/movies" },
       { label: "Séries", to: "/browse/series" },
+      { label: "Novelas", to: "/novelas" },
       { label: "Animes", to: "/animes" },
       { label: "Desenhos", to: "/desenhos" },
       { label: "Coleções", to: "/colecoes" },
@@ -199,16 +200,6 @@ export const Navbar = () => {
                         <SettingsIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
                         {t("nav.settings")}
                       </Link>
-                      <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          setAssistantOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors text-left"
-                      >
-                        <Headphones className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                        Suporte
-                      </button>
                       <button
                         onClick={async () => {
                           setMenuOpen(false);

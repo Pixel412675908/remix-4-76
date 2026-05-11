@@ -24,6 +24,7 @@ import Browse from "./pages/Browse.tsx";
 import Profile from "./pages/Profile.tsx";
 import Settings from "./pages/Settings.tsx";
 import Animes from "./pages/Animes.tsx";
+import Novelas from "./pages/Novelas.tsx";
 import Desenhos from "./pages/Desenhos.tsx";
 import EmBreve from "./pages/EmBreve.tsx";
 import Colecoes from "./pages/Colecoes.tsx";
@@ -76,6 +77,7 @@ const App = () => (
                   <Route path="/browse/:category" element={<RequireAuth><Browse /></RequireAuth>} />
                   <Route path="/my-list" element={<RequireAuth><MyList /></RequireAuth>} />
                   <Route path="/animes" element={<RequireAuth><Animes /></RequireAuth>} />
+                  <Route path="/novelas" element={<RequireAuth><Novelas /></RequireAuth>} />
                   <Route path="/desenhos" element={<RequireAuth><Desenhos /></RequireAuth>} />
                   <Route path="/em-breve" element={<RequireAuth><EmBreve /></RequireAuth>} />
                   <Route path="/colecoes" element={<RequireAuth><Colecoes /></RequireAuth>} />

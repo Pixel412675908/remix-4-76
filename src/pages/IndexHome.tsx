@@ -1,6 +1,6 @@
 // Home autenticado — TMDB real + scroll infinito por row + filtros +18.
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Compass, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
@@ -15,7 +15,7 @@ import { canWatch } from "@/lib/maturity";
 import { Media } from "@/types/media";
 import { cn } from "@/lib/utils";
 
-const HERO_INTERVAL = 9000;
+const HERO_INTERVAL = 6000;
 
 interface LoadedRow {
   def: RowDef;
@@ -33,7 +33,7 @@ const IndexHome = () => {
   const [heroIdx, setHeroIdx] = useState(0);
   const [showExplorerBanner, setShowExplorerBanner] = useState(true);
   const intervalRef = useRef<number | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  
 
   // Define rows visíveis baseado em preferências de maturidade
   const visibleRowDefs = useMemo<RowDef[]>(() => {
@@ -69,7 +69,7 @@ const IndexHome = () => {
     };
   }, [visibleRowDefs]);
 
-  // Filtra por maturidade
+  // Filtra por maturidade e limita a exatamente 10 por row
   const filteredRows = useMemo(() => {
     return rows
       .map((r) => ({
@@ -77,7 +77,7 @@ const IndexHome = () => {
         items: sortMediaForAccount(
           r.items.filter((m) => canWatch(m, activeProfile, account)),
           account
-        ),
+        ).slice(0, 10),
       }))
       .filter((r) => r.items.length > 0);
   }, [rows, account, activeProfile]);
@@ -106,57 +106,7 @@ const IndexHome = () => {
 
   const heroMedia = heroCandidates[heroIdx];
 
-  // Scroll infinito: carrega +1 página em todas as rows incompletas quando sentinel visível
-  const loadMore = useCallback(async () => {
-    setRows((prev) => {
-      const next = prev.map((r) => (r.done || r.loading ? r : { ...r, loading: true }));
-      // dispara em paralelo
-      next.forEach((r, idx) => {
-        if (r.done || prev[idx].loading) return;
-        const nextPage = r.page + 1;
-        if (nextPage > 5) {
-          // limite razoável p/ não estourar quota TMDB
-          setRows((curr) => curr.map((cr, i) => (i === idx ? { ...cr, loading: false, done: true } : cr)));
-          return;
-        }
-        r.def
-          .loader(nextPage)
-          .then((items) => {
-            setRows((curr) =>
-              curr.map((cr, i) =>
-                i === idx
-                  ? {
-                      ...cr,
-                      items: [...cr.items, ...items],
-                      page: nextPage,
-                      loading: false,
-                      done: items.length === 0,
-                    }
-                  : cr
-              )
-            );
-          })
-          .catch(() => {
-            setRows((curr) =>
-              curr.map((cr, i) => (i === idx ? { ...cr, loading: false, done: true } : cr))
-            );
-          });
-      });
-      return next;
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!sentinelRef.current) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore();
-      },
-      { rootMargin: "600px" }
-    );
-    obs.observe(sentinelRef.current);
-    return () => obs.disconnect();
-  }, [loadMore]);
+  // Scroll infinito desativado: cada row exibe exatamente 10 itens (regra do produto).
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,7 +166,7 @@ const IndexHome = () => {
               onPlay={(m) => setPlaying(m)}
             />
           ))}
-          <div ref={sentinelRef} className="h-12" aria-hidden />
+          
         </div>
       </main>
 
