@@ -177,8 +177,24 @@ export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   return mapList(data.results, "tv", { minVotes: 200 });
 }
 export async function fetchNowPlaying(page = 1): Promise<Media[]> {
-  const data = await tget<{ results: TmdbItem[] }>("/movie/now_playing", { page, region: REGION });
-  return mapList(data.results, "movie", { minVotes: 30 });
+  // Lançamentos: combinamos /movie/now_playing + /tv/on_the_air e filtramos
+  // somente conteúdo dos últimos 60 dias, ordenado do mais recente.
+  const sixtyDaysAgo = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const [m, tv] = await Promise.all([
+    tget<{ results: TmdbItem[] }>("/movie/now_playing", { page, region: REGION }),
+    tget<{ results: TmdbItem[] }>("/tv/on_the_air", { page }),
+  ]);
+  const merged = [...m.results.map((r) => ({ ...r, media_type: "movie" as const })),
+                  ...tv.results.map((r) => ({ ...r, media_type: "tv" as const }))];
+  const recent = merged.filter((r) => {
+    const d = r.release_date || r.first_air_date || "";
+    return d >= sixtyDaysAgo && d <= TODAY;
+  }).sort((a, b) => {
+    const da = a.release_date || a.first_air_date || "";
+    const db = b.release_date || b.first_air_date || "";
+    return db.localeCompare(da);
+  });
+  return mapList(recent, undefined, { minVotes: 10 });
 }
 export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
