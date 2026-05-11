@@ -127,16 +127,24 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
-  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean }
+  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean }
 ): Promise<Media[]> {
   const genres = await loadGenres();
   const minVotes = opts?.minVotes ?? 50;
   const requireReleased = opts?.requireReleased ?? true;
   const allowJa = opts?.allowJa ?? false;
+  const allowReality = opts?.allowReality ?? false;
+  const allowHentai = opts?.allowHentai ?? false;
   return items
     .filter((i) => qualityFilter(i, minVotes))
     .filter((i) => (requireReleased ? isReleased(i) : true))
     .filter((i) => hasAcceptedAudio(i, allowJa))
+    .filter((i) => allowReality || !(i.genre_ids ?? []).includes(10764))
+    .filter((i) => {
+      if (allowHentai) return true;
+      const text = `${i.title ?? ""} ${i.name ?? ""} ${i.overview ?? ""}`;
+      return !HENTAI_KEYWORDS.test(text);
+    })
     .map((i) => mapItem(i, fallbackType, genres));
 }
 
