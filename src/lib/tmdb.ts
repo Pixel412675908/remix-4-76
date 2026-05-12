@@ -230,6 +230,17 @@ export const ANIME_BLACKLIST_IDS = new Set<number>([
   61443,  // Seikon no Qwaser
 ]);
 
+// Lista negra por título (regex case-insensitive). Aplica-se a animes e
+// pesquisa para garantir que conteúdos sinalizados como inadequados
+// nunca apareçam, mesmo que o TMDB não os marque como adultos.
+export const ANIME_TITLE_BLACKLIST = /\b(sankarea|dragonaut|iwa\s*kakeru|sport\s*climbing\s*girls|takamine[- ]?san|please\s*put\s*them\s*on|girls\s*bravo|harem\s*in\s*the\s*labyrinth|aika)\b/i;
+
+function isBlacklistedAnime(item: TmdbItem): boolean {
+  if (ANIME_BLACKLIST_IDS.has(item.id)) return true;
+  const title = `${item.title ?? ""} ${item.name ?? ""}`;
+  return ANIME_TITLE_BLACKLIST.test(title);
+}
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
   // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -246,7 +257,7 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     (r) =>
       r.original_language === "ja" &&
       !r.adult &&
-      !ANIME_BLACKLIST_IDS.has(r.id)
+      !isBlacklistedAnime(r)
   );
   return mapList(filtered, "tv", {
     minVotes: 100,
@@ -333,7 +344,9 @@ export async function fetchUpcomingAnime(page = 1): Promise<Media[]> {
     page, with_genres: 16, with_original_language: "ja",
     sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja");
+  const filtered = data.results.filter(
+    (r) => r.original_language === "ja" && !isBlacklistedAnime(r)
+  );
   return mapList(filtered, "tv", { minVotes: 0, requireReleased: false, allowJa: true });
 }
 export async function fetchUpcomingAnimation(page = 1): Promise<Media[]> {
@@ -387,9 +400,23 @@ export async function fetchHomeRowsTmdb(): Promise<ContentRow[]> {
 }
 
 export async function fetchHeroPool(): Promise<Media[]> {
-  // 6 destaques pra rotação do hero.
-  const [p1, p2] = await Promise.all([fetchTrending(1), fetchTrending(2)]);
-  return [...p1, ...p2].slice(0, 6);
+  // 6 destaques pra rotação do hero. Oversample 3 páginas e deduplica
+  // para garantir pelo menos 6 itens válidos mesmo após filtros.
+  const [p1, p2, p3] = await Promise.all([
+    fetchTrending(1).catch(() => []),
+    fetchTrending(2).catch(() => []),
+    fetchPopularMovies(1).catch(() => []),
+  ]);
+  const seen = new Set<number>();
+  const merged: Media[] = [];
+  for (const m of [...p1, ...p2, ...p3]) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    if (!m.backdropUrl) continue;
+    merged.push(m);
+    if (merged.length >= 6) break;
+  }
+  return merged.slice(0, 6);
 }
 
 // ============ Contadores totais por categoria ============
@@ -541,8 +568,10 @@ export async function searchTmdb(query: string): Promise<Media[]> {
   if (!q) return [];
   const cached = searchCache.get(q);
   if (cached && Date.now() - cached.ts < SEARCH_TTL) return cached.results;
-  const data = await tget<{ results: TmdbItem[] }>("/search/multi", { query: q, include_adult: true });
-  const filtered = data.results.filter((r: any) => r.media_type === "movie" || r.media_type === "tv");
+  const data = await tget<{ results: TmdbItem[] }>("/search/multi", { query: q, include_adult: false });
+  const filtered = data.results
+    .filter((r: any) => r.media_type === "movie" || r.media_type === "tv")
+    .filter((r: any) => !isBlacklistedAnime(r));
   const results = await mapList(filtered, undefined, { minVotes: 0, requireReleased: false, allowJa: true });
   searchCache.set(q, { ts: Date.now(), results });
   return results;

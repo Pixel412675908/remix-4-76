@@ -7,17 +7,23 @@ import { useStreamWorld } from "@/hooks/useStreamWorld";
 export const StreamWorldOverlay = () => {
   const { isOpen, close, url } = useStreamWorld();
   const [loaded, setLoaded] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setLoaded(false);
+      setTimedOut(false);
       return;
     }
     document.body.style.overflow = "hidden";
+    const t = window.setTimeout(() => {
+      if (!loaded) setTimedOut(true);
+    }, 8000);
     return () => {
       document.body.style.overflow = "";
+      window.clearTimeout(t);
     };
-  }, [isOpen]);
+  }, [isOpen, loaded]);
 
   if (!isOpen || !url) return null;
 
@@ -59,7 +65,7 @@ export const StreamWorldOverlay = () => {
         Voltar
       </button>
 
-      {!loaded && (
+      {!loaded && !timedOut && (
         <div
           style={{
             position: "absolute",
@@ -71,6 +77,41 @@ export const StreamWorldOverlay = () => {
           }}
         >
           <Loader2 className="h-8 w-8 text-white animate-spin" />
+        </div>
+      )}
+
+      {timedOut && !loaded && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            background: "black",
+            zIndex: 2,
+            color: "white",
+            padding: 24,
+            textAlign: "center",
+          }}
+        >
+          <div>
+            <p style={{ fontSize: 16, marginBottom: 12 }}>
+              Não foi possível carregar o StreamWorld no momento.
+            </p>
+            <button
+              onClick={close}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 8,
+                background: "hsl(var(--primary))",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Voltar ao StreamFlix
+            </button>
+          </div>
         </div>
       )}
 
