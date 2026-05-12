@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, Globe2 } from "lucide-react";
+import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/Logo";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { AssistantPanel } from "@/components/AssistantPanel";
-import { useStreamWorld } from "@/hooks/useStreamWorld";
 import { useUserAvatar } from "@/contexts/UserAvatarContext";
 
 
@@ -24,7 +23,6 @@ export const Navbar = () => {
   const { t } = useI18n();
   const { user, account, activeProfile, isExplorer, signOut } = useAuth();
   const { avatarUrl: ctxAvatar } = useUserAvatar();
-  const { open: openStreamWorld } = useStreamWorld();
 
   // Esconde a barra de navegação secundária (e a navbar inteira em telas
   // de conteúdo individual) para não atrapalhar a leitura da sinopse.
@@ -182,23 +180,21 @@ export const Navbar = () => {
                     className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1rem)] z-[9999] bg-popover/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-elevated overflow-hidden animate-fade-in"
                   >
                     <div className="p-1.5">
-                      <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          openStreamWorld();
-                        }}
-                        className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors text-left"
+                      <Link
+                        to="/profile"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
                       >
-                        <Globe2 className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                        StreamWorld
-                      </button>
+                        <UserCircle2 className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                        Meu Perfil
+                      </Link>
                       <Link
                         to="/settings"
                         onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
                       >
                         <SettingsIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                        {t("nav.settings")}
+                        Configurações
                       </Link>
                       <button
                         onClick={async () => {
@@ -209,7 +205,7 @@ export const Navbar = () => {
                         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors text-left"
                       >
                         <LogOut className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-                        {t("nav.logout")}
+                        Sair
                       </button>
                     </div>
                   </div>

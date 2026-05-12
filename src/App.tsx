@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { I18nProvider } from "@/lib/i18n";
 import { UserAvatarProvider } from "@/contexts/UserAvatarContext";
-import { StreamWorldProvider } from "@/hooks/useStreamWorld";
-import { StreamWorldOverlay } from "@/components/StreamWorldOverlay";
 import { ReactNode } from "react";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -61,32 +59,29 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <UserAvatarProvider>
-              <StreamWorldProvider>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/login" element={<RedirectAuthed><Login /></RedirectAuthed>} />
-                  <Route path="/signup" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
-                  <Route path="/cadastro" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
-                  <Route path="/recuperar-senha" element={<RecoverPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
-                  <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
-                  <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-                  <Route path="/series/:id" element={<RequireAuth><SeriesDetail /></RequireAuth>} />
-                  <Route path="/movie/:id" element={<RequireAuth><MovieDetail /></RequireAuth>} />
-                  <Route path="/browse/:category" element={<RequireAuth><Browse /></RequireAuth>} />
-                  <Route path="/my-list" element={<RequireAuth><MyList /></RequireAuth>} />
-                  <Route path="/animes" element={<RequireAuth><Animes /></RequireAuth>} />
-                  <Route path="/novelas" element={<RequireAuth><Novelas /></RequireAuth>} />
-                  <Route path="/desenhos" element={<RequireAuth><Desenhos /></RequireAuth>} />
-                  <Route path="/em-breve" element={<RequireAuth><EmBreve /></RequireAuth>} />
-                  <Route path="/colecoes" element={<RequireAuth><Colecoes /></RequireAuth>} />
-                  <Route path="/colecoes/:collection_id" element={<RequireAuth><CollectionDetail /></RequireAuth>} />
-                  <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <StreamWorldOverlay />
-              </StreamWorldProvider>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<RedirectAuthed><Login /></RedirectAuthed>} />
+                <Route path="/signup" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
+                <Route path="/cadastro" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
+                <Route path="/recuperar-senha" element={<RecoverPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+                <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+                <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+                <Route path="/series/:id" element={<RequireAuth><SeriesDetail /></RequireAuth>} />
+                <Route path="/movie/:id" element={<RequireAuth><MovieDetail /></RequireAuth>} />
+                <Route path="/browse/:category" element={<RequireAuth><Browse /></RequireAuth>} />
+                <Route path="/my-list" element={<RequireAuth><MyList /></RequireAuth>} />
+                <Route path="/animes" element={<RequireAuth><Animes /></RequireAuth>} />
+                <Route path="/novelas" element={<RequireAuth><Novelas /></RequireAuth>} />
+                <Route path="/desenhos" element={<RequireAuth><Desenhos /></RequireAuth>} />
+                <Route path="/em-breve" element={<RequireAuth><EmBreve /></RequireAuth>} />
+                <Route path="/colecoes" element={<RequireAuth><Colecoes /></RequireAuth>} />
+                <Route path="/colecoes/:collection_id" element={<RequireAuth><CollectionDetail /></RequireAuth>} />
+                <Route path="/search" element={<RequireAuth><Search /></RequireAuth>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </UserAvatarProvider>
           </AuthProvider>
         </BrowserRouter>

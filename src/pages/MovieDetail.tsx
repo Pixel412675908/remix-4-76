@@ -6,6 +6,8 @@ import { BackButton } from "@/components/BackButton";
 
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { StreamingProviders } from "@/components/StreamingProviders";
+import { CastRow } from "@/components/CastRow";
+import { SimilarRow } from "@/components/SimilarRow";
 import { fetchMedia } from "@/lib/api";
 import { Media } from "@/types/media";
 import { useMyList } from "@/hooks/useMyList";
@@ -128,7 +130,12 @@ const MovieDetail = () => {
           </div>
         ) : null}
       </section>
-      
+
+      <section className="container-flix pb-10 space-y-10">
+        <CastRow type="movie" id={media.id} />
+        <SimilarRow type="movie" id={media.id} />
+      </section>
+
       <VideoPlayer media={media} open={playing} onClose={() => setPlaying(false)} />
     </div>
   );
