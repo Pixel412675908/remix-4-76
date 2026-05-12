@@ -1,15 +1,54 @@
-// Página /profile foi consolidada em /settings.
-// Mantemos apenas um redirect para evitar quebrar links antigos.
+// /profile — Meu Perfil: tudo que era "Configuração de Conta".
 
 import { useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useI18n } from "@/lib/i18n";
+import { Logo } from "@/components/Logo";
+import { AccountSection } from "@/pages/Settings";
 
-const ProfileRedirect = () => {
+export default function Profile() {
   const navigate = useNavigate();
-  useEffect(() => {
-    navigate("/settings", { replace: true });
-  }, [navigate]);
-  return <Navigate to="/settings" replace />;
-};
+  const { user, loading } = useAuth();
+  const { t } = useI18n();
 
-export default ProfileRedirect;
+  useEffect(() => {
+    if (!loading && !user) navigate("/login", { replace: true });
+  }, [user, loading, navigate]);
+
+  if (!user) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background text-muted-foreground">
+        {t("common.loading")}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="min-h-screen bg-background text-foreground"
+      style={{ overflowX: "hidden", maxWidth: "100vw" }}
+    >
+      <header className="sticky top-0 z-30 border-b border-white/5 bg-background/80 backdrop-blur-xl">
+        <div className="container-flix flex items-center gap-3 h-14">
+          <button
+            onClick={() => navigate(-1)}
+            className="h-9 w-9 grid place-items-center rounded-full hover:bg-white/5"
+            aria-label="Voltar"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <Logo size="sm" />
+          <h1 className="ml-2 font-display text-lg tracking-wide">Meu Perfil</h1>
+        </div>
+      </header>
+
+      <main className="container-flix pt-5 pb-24 max-w-3xl">
+        <div className="space-y-4 md:space-y-5 min-w-0">
+          <AccountSection />
+        </div>
+      </main>
+    </div>
+  );
+}

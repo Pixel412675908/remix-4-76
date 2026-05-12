@@ -152,7 +152,7 @@ export default function Settings() {
 
 // ============== Sections ==============
 
-function AccountSection() {
+export function AccountSection() {
   const navigate = useNavigate();
   const { user, account, signOut, signOutEverywhere, updateIdentity } = useAuth();
   const { avatarUrl: ctxAvatar, saveAvatar } = useUserAvatar();
