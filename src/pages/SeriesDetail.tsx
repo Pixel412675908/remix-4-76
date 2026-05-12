@@ -6,6 +6,8 @@ import { BackButton } from "@/components/BackButton";
 
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { StreamingProviders } from "@/components/StreamingProviders";
+import { CastRow } from "@/components/CastRow";
+import { SimilarRow } from "@/components/SimilarRow";
 import { fetchSeries, fetchEpisodesForSeason } from "@/lib/api";
 import { Series, Episode } from "@/types/media";
 import { useMyList } from "@/hooks/useMyList";
@@ -273,6 +275,11 @@ const SeriesDetail = () => {
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="container-flix pb-12 space-y-10">
+        <CastRow type="tv" id={series.id} />
+        <SimilarRow type="tv" id={series.id} />
       </section>
 
       <VideoPlayer
