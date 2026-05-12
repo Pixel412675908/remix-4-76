@@ -12,21 +12,25 @@ import {
   fetchUpcomingTv,
   fetchUpcomingAnime,
   fetchUpcomingAnimation,
+  fetchUpcomingMoviesByYear,
+  fetchUpcomingTvByYear,
+  fetchUpcomingAnimeByYear,
+  fetchUpcomingAnimationByYear,
   type RowLoader,
 } from "@/lib/tmdb";
 import type { Media } from "@/types/media";
 
 type CatKey = "movie" | "series" | "anime" | "animation";
 
-const CATEGORIES: { key: CatKey; label: string; loader: RowLoader }[] = [
-  { key: "movie", label: "Filmes", loader: fetchUpcomingMovies },
-  { key: "series", label: "Séries", loader: fetchUpcomingTv },
-  { key: "anime", label: "Animes", loader: fetchUpcomingAnime },
-  { key: "animation", label: "Desenhos", loader: fetchUpcomingAnimation },
+const CATEGORIES: { key: CatKey; label: string; loader: RowLoader; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
+  { key: "movie", label: "Filmes", loader: fetchUpcomingMovies, loaderByYear: fetchUpcomingMoviesByYear },
+  { key: "series", label: "Séries", loader: fetchUpcomingTv, loaderByYear: fetchUpcomingTvByYear },
+  { key: "anime", label: "Animes", loader: fetchUpcomingAnime, loaderByYear: fetchUpcomingAnimeByYear },
+  { key: "animation", label: "Desenhos", loader: fetchUpcomingAnimation, loaderByYear: fetchUpcomingAnimationByYear },
 ];
 
 const YEAR_OPTIONS = [2026, 2027, 2028, 2029, 2030] as const;
-const MAX_PAGES = 6;
+const MAX_PAGES = 10;
 
 function formatBrDate(iso?: string): string {
   if (!iso) return "data a confirmar";
@@ -47,16 +51,28 @@ export default function EmBreve() {
   const [unavailable, setUnavailable] = useState<Media | null>(null);
   const seen = useRef<Set<number>>(new Set());
 
-  // Carrega todas categorias x páginas em paralelo
+  // Recarrega quando o conjunto de anos selecionados muda — busca por ano
+  // específico no TMDB para garantir resultados em 2027/2028/2029/2030.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     seen.current.clear();
     (async () => {
       const tasks: Promise<Media[]>[] = [];
+      const yearsToFetch: number[] = activeYears.size > 0
+        ? Array.from(activeYears)
+        : [];
       for (const c of CATEGORIES) {
-        for (let p = 1; p <= MAX_PAGES; p++) {
-          tasks.push(c.loader(p).catch(() => [] as Media[]));
+        if (yearsToFetch.length > 0) {
+          for (const y of yearsToFetch) {
+            for (let p = 1; p <= MAX_PAGES; p++) {
+              tasks.push(c.loaderByYear(y, p).catch(() => [] as Media[]));
+            }
+          }
+        } else {
+          for (let p = 1; p <= MAX_PAGES; p++) {
+            tasks.push(c.loader(p).catch(() => [] as Media[]));
+          }
         }
       }
       const results = (await Promise.all(tasks)).flat();
@@ -73,7 +89,7 @@ export default function EmBreve() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeYears]);
 
   // Aplica filtros + ordena por (ano asc, data asc)
   const grouped = useMemo(() => {
