@@ -17,9 +17,10 @@ interface Props {
   loaders: { label?: string; loader: RowLoader }[];
   maxPages?: number;
   badgeRender?: (m: Media) => React.ReactNode;
+  totalCount?: () => Promise<number>;
 }
 
-export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badgeRender }: Props) {
+export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badgeRender, totalCount }: Props) {
   const { account, activeProfile } = useAuth();
   const [items, setItems] = useState<Media[]>([]);
   const [page, setPage] = useState(1);
