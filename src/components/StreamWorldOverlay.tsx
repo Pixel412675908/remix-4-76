@@ -7,17 +7,23 @@ import { useStreamWorld } from "@/hooks/useStreamWorld";
 export const StreamWorldOverlay = () => {
   const { isOpen, close, url } = useStreamWorld();
   const [loaded, setLoaded] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setLoaded(false);
+      setTimedOut(false);
       return;
     }
     document.body.style.overflow = "hidden";
+    const t = window.setTimeout(() => {
+      if (!loaded) setTimedOut(true);
+    }, 8000);
     return () => {
       document.body.style.overflow = "";
+      window.clearTimeout(t);
     };
-  }, [isOpen]);
+  }, [isOpen, loaded]);
 
   if (!isOpen || !url) return null;
 
