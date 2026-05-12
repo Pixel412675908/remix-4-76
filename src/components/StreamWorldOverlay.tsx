@@ -65,7 +65,7 @@ export const StreamWorldOverlay = () => {
         Voltar
       </button>
 
-      {!loaded && (
+      {!loaded && !timedOut && (
         <div
           style={{
             position: "absolute",
@@ -77,6 +77,41 @@ export const StreamWorldOverlay = () => {
           }}
         >
           <Loader2 className="h-8 w-8 text-white animate-spin" />
+        </div>
+      )}
+
+      {timedOut && !loaded && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            background: "black",
+            zIndex: 2,
+            color: "white",
+            padding: 24,
+            textAlign: "center",
+          }}
+        >
+          <div>
+            <p style={{ fontSize: 16, marginBottom: 12 }}>
+              Não foi possível carregar o StreamWorld no momento.
+            </p>
+            <button
+              onClick={close}
+              style={{
+                padding: "8px 16px",
+                borderRadius: 8,
+                background: "hsl(var(--primary))",
+                color: "white",
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              Voltar ao StreamFlix
+            </button>
+          </div>
         </div>
       )}
 
