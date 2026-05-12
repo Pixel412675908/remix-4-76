@@ -230,6 +230,17 @@ export const ANIME_BLACKLIST_IDS = new Set<number>([
   61443,  // Seikon no Qwaser
 ]);
 
+// Lista negra por título (regex case-insensitive). Aplica-se a animes e
+// pesquisa para garantir que conteúdos sinalizados como inadequados
+// nunca apareçam, mesmo que o TMDB não os marque como adultos.
+export const ANIME_TITLE_BLACKLIST = /\b(sankarea|dragonaut|iwa\s*kakeru|sport\s*climbing\s*girls|takamine[- ]?san|please\s*put\s*them\s*on|girls\s*bravo|harem\s*in\s*the\s*labyrinth|aika)\b/i;
+
+function isBlacklistedAnime(item: TmdbItem): boolean {
+  if (ANIME_BLACKLIST_IDS.has(item.id)) return true;
+  const title = `${item.title ?? ""} ${item.name ?? ""}`;
+  return ANIME_TITLE_BLACKLIST.test(title);
+}
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
   // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
