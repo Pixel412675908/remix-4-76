@@ -55,7 +55,7 @@ export default function Settings() {
   const { user, account, signOut, signOutEverywhere } = useAuth();
   const { t } = useI18n();
   const { settings, loading, update } = useUserSettings();
-  const [active, setActive] = useState<SectionKey>("account");
+  const [active, setActive] = useState<SectionKey>("playback");
 
   useEffect(() => {
     if (!loading && !user) navigate("/login", { replace: true });
@@ -69,8 +69,8 @@ export default function Settings() {
     );
   }
 
+  // "Configuração de Conta" foi movida para a página /profile.
   const sections: Array<{ key: SectionKey; label: string; icon: typeof UserIcon }> = [
-    { key: "account", label: t("set.section.account"), icon: UserIcon },
     { key: "playback", label: t("set.section.playback"), icon: MonitorPlay },
     { key: "content", label: t("set.section.content"), icon: Sparkles },
     { key: "history", label: t("set.section.history"), icon: HistoryIcon },
@@ -138,7 +138,7 @@ export default function Settings() {
 
         {/* Content */}
         <div className="space-y-4 md:space-y-5 min-w-0">
-          {active === "account" && <AccountSection />}
+          
           {active === "playback" && <PlaybackSection />}
           {active === "content" && <ContentSection />}
           {active === "history" && <HistorySection />}
