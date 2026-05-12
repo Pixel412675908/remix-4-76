@@ -689,3 +689,126 @@ export function buildPlayerUrl(media: Media, episode?: { season?: number; number
   const e = episode?.number ?? 1;
   return `https://vidsrc.xyz/embed/tv?tmdb=${media.id}&season=${s}&episode=${e}`;
 }
+
+// ============ Elenco (TMDB credits) ============
+export interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profileUrl: string;
+  order: number;
+}
+
+export async function fetchCredits(type: "movie" | "tv", id: number): Promise<CastMember[]> {
+  try {
+    const data = await tget<any>(`/${type}/${id}/credits`);
+    const cast = (data.cast ?? []) as any[];
+    return cast
+      .map((c) => ({
+        id: c.id,
+        name: c.name ?? "—",
+        character: c.character ?? "",
+        profileUrl: c.profile_path
+          ? `https://image.tmdb.org/t/p/w185${c.profile_path}`
+          : "",
+        order: c.order ?? 999,
+      }))
+      .sort((a, b) => a.order - b.order);
+  } catch {
+    return [];
+  }
+}
+
+// ============ Semelhantes / Recomendados ============
+export async function fetchSimilarMixed(
+  type: "movie" | "tv",
+  id: number,
+  minCount = 30
+): Promise<Media[]> {
+  const genres = await loadGenres();
+  const seen = new Set<number>([id]);
+  const out: Media[] = [];
+
+  const push = (items: TmdbItem[], fallback: "movie" | "tv") => {
+    for (const it of items) {
+      if (seen.has(it.id)) continue;
+      if (!it.poster_path && !it.backdrop_path) continue;
+      if (isBlacklistedAnime(it)) continue;
+      seen.add(it.id);
+      out.push(mapItem(it, fallback, genres));
+    }
+  };
+
+  // 1) similares + recomendações do tipo original
+  for (const ep of [`/${type}/${id}/similar`, `/${type}/${id}/recommendations`]) {
+    for (let p = 1; p <= 3 && out.length < minCount * 2; p++) {
+      try {
+        const d = await tget<{ results: TmdbItem[] }>(ep, { page: p });
+        push(d.results, type);
+      } catch {}
+      if (out.length >= minCount * 2) break;
+    }
+    if (out.length >= minCount * 2) break;
+  }
+
+  // 2) cross-tipo: se filme, buscar séries do mesmo gênero; e vice-versa
+  if (out.length < minCount) {
+    try {
+      const detail = await tget<any>(`/${type}/${id}`);
+      const genreIds = (detail.genres ?? []).map((g: any) => g.id).slice(0, 3).join(",");
+      if (genreIds) {
+        const otherType = type === "movie" ? "tv" : "movie";
+        const d = await tget<{ results: TmdbItem[] }>(`/discover/${otherType}`, {
+          with_genres: genreIds,
+          sort_by: "popularity.desc",
+          "vote_count.gte": 100,
+        });
+        push(d.results, otherType);
+      }
+    } catch {}
+  }
+
+  return out.slice(0, Math.max(minCount, 30));
+}
+
+// ============ Em Breve por ano específico ============
+function yearRange(year: number): { gte: string; lte: string } {
+  return { gte: `${year}-01-01`, lte: `${year}-12-31` };
+}
+
+export async function fetchUpcomingMoviesByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
+    page, sort_by: "primary_release_date.asc",
+    "primary_release_date.gte": gte, "primary_release_date.lte": lte,
+  });
+  return mapList(data.results, "movie", { minVotes: 0, requireReleased: false });
+}
+export async function fetchUpcomingTvByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, sort_by: "first_air_date.asc",
+    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  });
+  return mapList(data.results, "tv", { minVotes: 0, requireReleased: false });
+}
+export async function fetchUpcomingAnimeByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_genres: 16, with_original_language: "ja",
+    sort_by: "first_air_date.asc",
+    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  });
+  const filtered = data.results.filter((r) => r.original_language === "ja" && !isBlacklistedAnime(r));
+  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false, allowJa: true });
+}
+export async function fetchUpcomingAnimationByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page, with_genres: 16, without_original_language: "ja",
+    sort_by: "first_air_date.asc",
+    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  });
+  const filtered = data.results.filter((r) => r.original_language !== "ja");
+  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
+}
