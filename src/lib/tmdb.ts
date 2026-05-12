@@ -344,7 +344,9 @@ export async function fetchUpcomingAnime(page = 1): Promise<Media[]> {
     page, with_genres: 16, with_original_language: "ja",
     sort_by: "first_air_date.asc", "first_air_date.gte": TODAY,
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja");
+  const filtered = data.results.filter(
+    (r) => r.original_language === "ja" && !isBlacklistedAnime(r)
+  );
   return mapList(filtered, "tv", { minVotes: 0, requireReleased: false, allowJa: true });
 }
 export async function fetchUpcomingAnimation(page = 1): Promise<Media[]> {
