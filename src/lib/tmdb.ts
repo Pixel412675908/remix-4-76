@@ -248,6 +248,24 @@ function isBlacklistedAnime(item: TmdbItem): boolean {
   return ANIME_TITLE_BLACKLIST.test(title);
 }
 
+async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
+  const out = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const d = await tget<any>(`/tv/${id}`);
+        return {
+          id: d.id, name: d.name, overview: d.overview,
+          poster_path: d.poster_path, backdrop_path: d.backdrop_path,
+          first_air_date: d.first_air_date, vote_average: d.vote_average,
+          vote_count: d.vote_count, original_language: d.original_language,
+          genre_ids: (d.genres ?? []).map((g: any) => g.id), media_type: "tv",
+        } as TmdbItem;
+      } catch { return null; }
+    })
+  );
+  return out.filter((x): x is TmdbItem => !!x);
+}
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
   // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -257,17 +275,20 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     include_adult: false,
     "vote_count.gte": 100,
     "vote_average.gte": 7.0,
-    without_genres: 10749, // exclui romance
+    without_genres: 10749,
     sort_by: "popularity.desc",
   });
-  const filtered = data.results.filter(
-    (r) =>
-      r.original_language === "ja" &&
-      !r.adult &&
-      !isBlacklistedAnime(r)
+  let filtered = data.results.filter(
+    (r) => r.original_language === "ja" && !r.adult && !isBlacklistedAnime(r)
   );
+  // Garante whitelist (Shokugeki etc.) na primeira página.
+  if (page === 1) {
+    const whitelist = await fetchTvByIds(ANIME_WHITELIST_IDS);
+    const existingIds = new Set(filtered.map((f) => f.id));
+    filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
+  }
   return mapList(filtered, "tv", {
-    minVotes: 100,
+    minVotes: 0, // whitelist pode ter votos baixos no fetch direto
     requireReleased: false,
     allowJa: true,
     allowHentai: false,
