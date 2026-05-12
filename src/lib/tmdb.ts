@@ -554,8 +554,10 @@ export async function searchTmdb(query: string): Promise<Media[]> {
   if (!q) return [];
   const cached = searchCache.get(q);
   if (cached && Date.now() - cached.ts < SEARCH_TTL) return cached.results;
-  const data = await tget<{ results: TmdbItem[] }>("/search/multi", { query: q, include_adult: true });
-  const filtered = data.results.filter((r: any) => r.media_type === "movie" || r.media_type === "tv");
+  const data = await tget<{ results: TmdbItem[] }>("/search/multi", { query: q, include_adult: false });
+  const filtered = data.results
+    .filter((r: any) => r.media_type === "movie" || r.media_type === "tv")
+    .filter((r: any) => !isBlacklistedAnime(r));
   const results = await mapList(filtered, undefined, { minVotes: 0, requireReleased: false, allowJa: true });
   searchCache.set(q, { ts: Date.now(), results });
   return results;
