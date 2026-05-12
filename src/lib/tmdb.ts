@@ -257,7 +257,7 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     (r) =>
       r.original_language === "ja" &&
       !r.adult &&
-      !ANIME_BLACKLIST_IDS.has(r.id)
+      !isBlacklistedAnime(r)
   );
   return mapList(filtered, "tv", {
     minVotes: 100,
