@@ -32,7 +32,7 @@ const MyList = () => {
           <div className="border border-dashed border-border rounded-xl p-16 text-center">
             <Bookmark className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg text-muted-foreground">
-              Sua lista está vazia. Adicione filmes e séries para assistir depois.
+              Você ainda não adicionou nenhum título à sua lista.
             </p>
           </div>
         ) : (

@@ -1,5 +1,5 @@
 import { InfiniteCatalog } from "@/components/InfiniteCatalog";
-import { fetchAnimation } from "@/lib/tmdb";
+import { fetchAnimation, countAnimation } from "@/lib/tmdb";
 
 export default function Desenhos() {
   return (
@@ -7,6 +7,7 @@ export default function Desenhos() {
       title="Desenhos"
       subtitle="Animações ocidentais, clássicos e modernos para toda a família."
       loaders={[{ label: "animation", loader: fetchAnimation }]}
+      totalCount={countAnimation}
     />
   );
 }
