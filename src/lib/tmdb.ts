@@ -233,7 +233,14 @@ export const ANIME_BLACKLIST_IDS = new Set<number>([
 // Lista negra por título (regex case-insensitive). Aplica-se a animes e
 // pesquisa para garantir que conteúdos sinalizados como inadequados
 // nunca apareçam, mesmo que o TMDB não os marque como adultos.
-export const ANIME_TITLE_BLACKLIST = /\b(sankarea|dragonaut|iwa\s*kakeru|sport\s*climbing\s*girls|takamine[- ]?san|please\s*put\s*them\s*on|girls\s*bravo|harem\s*in\s*the\s*labyrinth|aika)\b/i;
+// Bloqueia hentai/ecchi pesado por título.
+// Removidos da blacklist (mantidos no catálogo): sankarea, dragonaut, iwa kakeru, sport climbing girls.
+export const ANIME_TITLE_BLACKLIST = /\b(takamine[- ]?san|please\s*put\s*them\s*on|girls?\s*bravo|harem\s*in\s*the\s*labyrinth|aika(\s*zero)?)\b/i;
+
+// Animes garantidos no catálogo (whitelist por TMDB ID).
+export const ANIME_WHITELIST_IDS = [
+  45782, // Shokugeki no Soma / Food Wars
+];
 
 function isBlacklistedAnime(item: TmdbItem): boolean {
   if (ANIME_BLACKLIST_IDS.has(item.id)) return true;
