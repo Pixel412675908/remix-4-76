@@ -17,17 +17,26 @@ interface Props {
   loaders: { label?: string; loader: RowLoader }[];
   maxPages?: number;
   badgeRender?: (m: Media) => React.ReactNode;
+  totalCount?: () => Promise<number>;
 }
 
-export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badgeRender }: Props) {
+export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badgeRender, totalCount }: Props) {
   const { account, activeProfile } = useAuth();
   const [items, setItems] = useState<Media[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [playing, setPlaying] = useState<Media | null>(null);
+  const [total, setTotal] = useState<number | null>(null);
   const sentinel = useRef<HTMLDivElement | null>(null);
   const seen = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (!totalCount) return;
+    let cancel = false;
+    totalCount().then((n) => { if (!cancel) setTotal(n); }).catch(() => {});
+    return () => { cancel = true; };
+  }, [totalCount]);
 
   const loadPage = useCallback(
     async (p: number) => {
@@ -85,6 +94,11 @@ export function InfiniteCatalog({ title, subtitle, loaders, maxPages = 250, badg
       <Navbar />
       <main className="container-flix pt-28 md:pt-32 pb-20">
         <h1 className="font-display text-4xl md:text-6xl mb-2 tracking-wide">{title}</h1>
+        {total != null && (
+          <p className="text-xs text-muted-foreground/80 mb-2">
+            {total.toLocaleString("pt-BR")} títulos disponíveis
+          </p>
+        )}
         {subtitle && <p className="text-muted-foreground mb-8">{subtitle}</p>}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">

@@ -211,24 +211,48 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   const filtered = data.results.filter((r) => r.original_language !== "ja");
   return mapList(filtered, "tv", { minVotes: 100 });
 }
+// Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
+// Mesmo que o TMDB retorne, são removidos antes de exibir.
+export const ANIME_BLACKLIST_IDS = new Set<number>([
+  90474,  // Overflow
+  37854,  // Yosuga no Sora
+  37578,  // Kiss x Sis
+  75299,  // Domestic Girlfriend
+  93571,  // Interspecies Reviewers
+  110588, // Redo of Healer
+  114797, // Emergence
+  62741,  // High School DxD
+  46298,  // Highschool of the Dead
+  61374,  // Prison School
+  76669,  // Shimoneta
+  104158, // Ishuzoku Reviewers (alias)
+  82684,  // To Love-Ru
+  61443,  // Seikon no Qwaser
+]);
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: filtro mínimo conforme regra do produto. Hentai/adulto bloqueado
-  // exclusivamente pela flag include_adult=false do TMDB. Sem filtros extras.
+  // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page,
     with_genres: 16,
     with_original_language: "ja",
     include_adult: false,
-    "vote_count.gte": 10,
-    without_genres: 10749,
+    "vote_count.gte": 100,
+    "vote_average.gte": 7.0,
+    without_genres: 10749, // exclui romance
     sort_by: "popularity.desc",
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja" && !r.adult);
+  const filtered = data.results.filter(
+    (r) =>
+      r.original_language === "ja" &&
+      !r.adult &&
+      !ANIME_BLACKLIST_IDS.has(r.id)
+  );
   return mapList(filtered, "tv", {
-    minVotes: 10,
+    minVotes: 100,
     requireReleased: false,
     allowJa: true,
-    allowHentai: true,
+    allowHentai: false,
   });
 }
 // Reality removido: stub mantido vazio para retrocompatibilidade.
@@ -382,7 +406,13 @@ export async function countSeries(): Promise<number> {
   return totalFor("/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, without_genres: 10764 });
 }
 export async function countAnime(): Promise<number> {
-  return totalFor("/discover/tv", { with_genres: 16, with_original_language: "ja" });
+  return totalFor("/discover/tv", {
+    with_genres: 16,
+    with_original_language: "ja",
+    "vote_count.gte": 100,
+    "vote_average.gte": 7.0,
+    without_genres: 10749,
+  });
 }
 export async function countAnimation(): Promise<number> {
   return totalFor("/discover/tv", { with_genres: 16, without_original_language: "ja" });
