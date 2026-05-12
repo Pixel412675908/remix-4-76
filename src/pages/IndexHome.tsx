@@ -55,8 +55,20 @@ const IndexHome = () => {
     Promise.all(
       visibleRowDefs.map(async (def) => {
         try {
-          const items = await def.loader(1);
-          return { def, items, page: 1, loading: false, done: items.length === 0 };
+          // Oversample: fetch até 3 páginas para garantir 10 itens visíveis após filtros.
+          const pages = await Promise.all([
+            def.loader(1).catch(() => [] as Media[]),
+            def.loader(2).catch(() => [] as Media[]),
+            def.loader(3).catch(() => [] as Media[]),
+          ]);
+          const seen = new Set<number>();
+          const items: Media[] = [];
+          for (const m of pages.flat()) {
+            if (seen.has(m.id)) continue;
+            seen.add(m.id);
+            items.push(m);
+          }
+          return { def, items, page: 3, loading: false, done: items.length === 0 };
         } catch {
           return { def, items: [], page: 1, loading: false, done: true };
         }
