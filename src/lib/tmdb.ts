@@ -228,6 +228,9 @@ export const ANIME_BLACKLIST_IDS = new Set<number>([
   104158, // Ishuzoku Reviewers (alias)
   82684,  // To Love-Ru
   61443,  // Seikon no Qwaser
+  46863,  // Why the Hell Are You Here, Teacher!?
+  73223,  // How Not to Summon a Demon Lord
+  37260,  // Manyuu Hikenchou
 ]);
 
 // Lista negra por título (regex case-insensitive). Aplica-se a animes e
