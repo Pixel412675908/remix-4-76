@@ -30,7 +30,7 @@ const CATEGORIES: { key: CatKey; label: string; loader: RowLoader; loaderByYear:
 ];
 
 const YEAR_OPTIONS = [2026, 2027, 2028, 2029, 2030] as const;
-const MAX_PAGES = 10;
+const MAX_PAGES = 30;
 
 function formatBrDate(iso?: string): string {
   if (!iso) return "data a confirmar";
