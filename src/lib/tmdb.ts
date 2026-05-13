@@ -106,9 +106,11 @@ function isReleased(item: TmdbItem): boolean {
   return date <= TODAY;
 }
 
-function qualityFilter(item: TmdbItem, minVotes = 50): boolean {
+function qualityFilter(item: TmdbItem, minVotes = 50, allowMissingOverview = false): boolean {
   if (!item.poster_path && !item.backdrop_path) return false;
-  if (!item.overview || item.overview.trim().length < 10) return false;
+  if (!allowMissingOverview) {
+    if (!item.overview || item.overview.trim().length < 10) return false;
+  }
   if ((item.vote_count ?? 0) < minVotes) return false;
   return true;
 }
@@ -117,7 +119,8 @@ function qualityFilter(item: TmdbItem, minVotes = 50): boolean {
 // "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
 const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
 
-function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
+function hasAcceptedAudio(item: TmdbItem, allowJa = false, allowAny = false): boolean {
+  if (allowAny) return true;
   const lang = (item.original_language || "").toLowerCase();
   if (ALLOWED_AUDIO_LANGS.has(lang)) return true;
   if (allowJa && lang === "ja") return true;
@@ -127,7 +130,7 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
-  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean }
+  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean; allowMissingOverview?: boolean; allowAnyLang?: boolean }
 ): Promise<Media[]> {
   const genres = await loadGenres();
   const minVotes = opts?.minVotes ?? 50;
@@ -135,10 +138,12 @@ async function mapList(
   const allowJa = opts?.allowJa ?? false;
   const allowReality = opts?.allowReality ?? false;
   const allowHentai = opts?.allowHentai ?? false;
+  const allowMissingOverview = opts?.allowMissingOverview ?? !requireReleased;
+  const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
-    .filter((i) => qualityFilter(i, minVotes))
+    .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
     .filter((i) => (requireReleased ? isReleased(i) : true))
-    .filter((i) => hasAcceptedAudio(i, allowJa))
+    .filter((i) => hasAcceptedAudio(i, allowJa, allowAnyLang))
     .filter((i) => allowReality || !(i.genre_ids ?? []).includes(10764))
     .filter((i) => {
       if (allowHentai) return true;
