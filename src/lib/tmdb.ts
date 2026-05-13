@@ -238,7 +238,7 @@ export const ANIME_BLACKLIST_IDS = new Set<number>([
 // nunca apareçam, mesmo que o TMDB não os marque como adultos.
 // Bloqueia hentai/ecchi pesado por título.
 // Removidos da blacklist (mantidos no catálogo): sankarea, dragonaut, iwa kakeru, sport climbing girls.
-export const ANIME_TITLE_BLACKLIST = /\b(takamine[- ]?san|please\s*put\s*them\s*on|girls?\s*bravo|harem\s*in\s*the\s*labyrinth|aika(\s*zero)?)\b/i;
+export const ANIME_TITLE_BLACKLIST = /\b(takamine[- ]?san|please\s*put\s*them\s*on|girls?\s*bravo|harem\s*in\s*the\s*labyrinth|aika(\s*zero)?|why\s*the\s*hell\s*are\s*you\s*here|domestic\s*girlfriend|domestic\s*na\s*kanojo|how\s*not\s*to\s*summon\s*a\s*demon\s*lord|isekai\s*maou|manyuu|manyu)\b/i;
 
 // Animes garantidos no catálogo (whitelist por TMDB ID).
 export const ANIME_WHITELIST_IDS = [
