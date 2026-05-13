@@ -91,13 +91,13 @@ export default function EmBreve() {
     };
   }, [activeYears]);
 
-  // Aplica filtros + ordena por (ano asc, data asc)
+  // Aplica filtros + ordena por (ano asc, data asc).
+  // Itens sem releaseDate vão para o bucket -1 ("data a confirmar").
   const grouped = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     const filtered = items
       .filter((m) => canWatch(m, activeProfile, account))
       .filter((m) => {
-        // categoria
         const isAnime = m.type === "tv" && m.originalLanguage === "ja";
         const isAnimation = m.type === "tv" && m.originalLanguage !== "ja" &&
           (m.genres ?? []).some((g) => /anim/i.test(g));
@@ -107,9 +107,11 @@ export default function EmBreve() {
         else if (isAnimation) cat = "animation";
         else cat = "series";
         if (!activeCats.has(cat)) return false;
-        if (activeYears.size > 0 && !activeYears.has(m.year)) return false;
-        // só futuros
         if (m.releaseDate && m.releaseDate < today) return false;
+        if (activeYears.size > 0) {
+          if (!m.releaseDate) return false;
+          if (!activeYears.has(m.year)) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -119,11 +121,17 @@ export default function EmBreve() {
 
     const map = new Map<number, Media[]>();
     for (const m of filtered) {
-      const arr = map.get(m.year) ?? [];
+      const key = m.releaseDate ? m.year : -1;
+      const arr = map.get(key) ?? [];
       arr.push(m);
-      map.set(m.year, arr);
+      map.set(key, arr);
     }
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+    return Array.from(map.entries()).sort((a, b) => {
+      // -1 (TBA) sempre por último
+      if (a[0] === -1) return 1;
+      if (b[0] === -1) return -1;
+      return a[0] - b[0];
+    });
   }, [items, activeCats, activeYears, account, activeProfile]);
 
   const openFilters = () => {
@@ -194,7 +202,7 @@ export default function EmBreve() {
               <div className="flex items-center gap-4 mb-5">
                 <div className="h-px flex-1 bg-border/60" />
                 <h2 className="font-display text-3xl md:text-4xl tracking-wider text-foreground/95 px-2">
-                  {year}
+                  {year === -1 ? "Em breve — data a confirmar" : year}
                 </h2>
                 <div className="h-px flex-1 bg-border/60" />
               </div>

@@ -1,4 +1,5 @@
-// Minha Lista — persistido no Supabase (por conta) + fallback localStorage para Modo Explorador
+// Minha Lista — autenticado: SEMPRE Supabase filtrado por account_id.
+// Explorador: localStorage isolado. Sem mistura entre os modos.
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,19 +18,25 @@ function readLocal(): number[] {
 
 export function useMyList() {
   const { user, isExplorer } = useAuth();
-  const [ids, setIds] = useState<number[]>(() => (isExplorer ? readLocal() : []));
+  const [ids, setIds] = useState<number[]>([]);
 
   const refresh = useCallback(async () => {
-    if (!user) {
+    if (user) {
+      // Limpa qualquer leak do modo explorador na transição.
+      try { localStorage.removeItem(EXPLORER_KEY); } catch {}
+      const { data } = await supabase
+        .from("my_list")
+        .select("media_id")
+        .eq("account_id", user.id);
+      setIds((data ?? []).map((r) => r.media_id));
+      return;
+    }
+    if (isExplorer) {
       setIds(readLocal());
       return;
     }
-    const { data } = await supabase
-      .from("my_list")
-      .select("media_id")
-      .eq("account_id", user.id);
-    setIds((data ?? []).map((r) => r.media_id));
-  }, [user]);
+    setIds([]);
+  }, [user, isExplorer]);
 
   useEffect(() => {
     refresh();
@@ -37,34 +44,38 @@ export function useMyList() {
 
   const add = useCallback(
     async (id: number) => {
-      if (!user) {
+      if (user) {
+        await supabase.from("my_list").insert({ account_id: user.id, media_id: id });
+        setIds((prev) => Array.from(new Set([...prev, id])));
+        return;
+      }
+      if (isExplorer) {
         const next = Array.from(new Set([...readLocal(), id]));
         localStorage.setItem(EXPLORER_KEY, JSON.stringify(next));
         setIds(next);
-        return;
       }
-      await supabase.from("my_list").insert({ account_id: user.id, media_id: id });
-      setIds((prev) => Array.from(new Set([...prev, id])));
     },
-    [user]
+    [user, isExplorer]
   );
 
   const remove = useCallback(
     async (id: number) => {
-      if (!user) {
+      if (user) {
+        await supabase
+          .from("my_list")
+          .delete()
+          .eq("account_id", user.id)
+          .eq("media_id", id);
+        setIds((prev) => prev.filter((x) => x !== id));
+        return;
+      }
+      if (isExplorer) {
         const next = readLocal().filter((x) => x !== id);
         localStorage.setItem(EXPLORER_KEY, JSON.stringify(next));
         setIds(next);
-        return;
       }
-      await supabase
-        .from("my_list")
-        .delete()
-        .eq("account_id", user.id)
-        .eq("media_id", id);
-      setIds((prev) => prev.filter((x) => x !== id));
     },
-    [user]
+    [user, isExplorer]
   );
 
   const has = useCallback((id: number) => ids.includes(id), [ids]);
