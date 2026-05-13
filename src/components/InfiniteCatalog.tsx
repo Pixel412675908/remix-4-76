@@ -147,6 +147,17 @@ export function InfiniteCatalog({
 
   const visible = sortMediaForAccount(genreFiltered, account);
 
+  // Auto-load mais páginas quando há filtro ativo e poucos resultados visíveis.
+  useEffect(() => {
+    if (activeGenres.size === 0) return;
+    if (loading || done) return;
+    if (visible.length >= 24) return;
+    if (page >= maxPages) return;
+    const next = page + 1;
+    setPage(next);
+    loadPage(next);
+  }, [activeGenres, visible.length, loading, done, page, maxPages, loadPage]);
+
   const openFilters = () => {
     setPendingGenres(new Set(activeGenres));
     setFilterOpen(true);
@@ -155,7 +166,11 @@ export function InfiniteCatalog({
     setActiveGenres(new Set(pendingGenres));
     setFilterOpen(false);
   };
-  const clear = () => setPendingGenres(new Set());
+  const clear = () => {
+    // Limpa tanto o painel quanto o filtro aplicado imediatamente.
+    setPendingGenres(new Set());
+    setActiveGenres(new Set());
+  };
   const togglePending = (label: string) =>
     setPendingGenres((prev) => {
       const next = new Set(prev);
