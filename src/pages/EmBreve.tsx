@@ -202,7 +202,7 @@ export default function EmBreve() {
               <div className="flex items-center gap-4 mb-5">
                 <div className="h-px flex-1 bg-border/60" />
                 <h2 className="font-display text-3xl md:text-4xl tracking-wider text-foreground/95 px-2">
-                  {year}
+                  {year === -1 ? "Em breve — data a confirmar" : year}
                 </h2>
                 <div className="h-px flex-1 bg-border/60" />
               </div>
