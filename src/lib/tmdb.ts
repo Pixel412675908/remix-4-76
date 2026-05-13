@@ -431,23 +431,25 @@ export async function fetchHomeRowsTmdb(): Promise<ContentRow[]> {
 }
 
 export async function fetchHeroPool(): Promise<Media[]> {
-  // 6 destaques pra rotação do hero. Oversample 3 páginas e deduplica
-  // para garantir pelo menos 6 itens válidos mesmo após filtros.
-  const [p1, p2, p3] = await Promise.all([
+  // 6 destaques pra rotação do hero. Oversample 5 páginas e deduplica
+  // para garantir 6 itens válidos mesmo após filtros de maturidade.
+  const [p1, p2, p3, p4, p5] = await Promise.all([
     fetchTrending(1).catch(() => []),
     fetchTrending(2).catch(() => []),
     fetchPopularMovies(1).catch(() => []),
+    fetchPopularTv(1).catch(() => []),
+    fetchTopRatedMovies(1).catch(() => []),
   ]);
   const seen = new Set<number>();
   const merged: Media[] = [];
-  for (const m of [...p1, ...p2, ...p3]) {
+  for (const m of [...p1, ...p2, ...p3, ...p4, ...p5]) {
     if (seen.has(m.id)) continue;
     seen.add(m.id);
     if (!m.backdropUrl) continue;
     merged.push(m);
-    if (merged.length >= 6) break;
+    if (merged.length >= 12) break;
   }
-  return merged.slice(0, 6);
+  return merged.slice(0, 12);
 }
 
 // ============ Contadores totais por categoria ============
