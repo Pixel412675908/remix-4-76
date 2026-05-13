@@ -106,9 +106,11 @@ function isReleased(item: TmdbItem): boolean {
   return date <= TODAY;
 }
 
-function qualityFilter(item: TmdbItem, minVotes = 50): boolean {
+function qualityFilter(item: TmdbItem, minVotes = 50, allowMissingOverview = false): boolean {
   if (!item.poster_path && !item.backdrop_path) return false;
-  if (!item.overview || item.overview.trim().length < 10) return false;
+  if (!allowMissingOverview) {
+    if (!item.overview || item.overview.trim().length < 10) return false;
+  }
   if ((item.vote_count ?? 0) < minVotes) return false;
   return true;
 }
@@ -117,7 +119,8 @@ function qualityFilter(item: TmdbItem, minVotes = 50): boolean {
 // "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
 const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
 
-function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
+function hasAcceptedAudio(item: TmdbItem, allowJa = false, allowAny = false): boolean {
+  if (allowAny) return true;
   const lang = (item.original_language || "").toLowerCase();
   if (ALLOWED_AUDIO_LANGS.has(lang)) return true;
   if (allowJa && lang === "ja") return true;
@@ -127,7 +130,7 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false): boolean {
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
-  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean }
+  opts?: { minVotes?: number; requireReleased?: boolean; allowJa?: boolean; allowReality?: boolean; allowHentai?: boolean; allowMissingOverview?: boolean; allowAnyLang?: boolean }
 ): Promise<Media[]> {
   const genres = await loadGenres();
   const minVotes = opts?.minVotes ?? 50;
@@ -135,10 +138,12 @@ async function mapList(
   const allowJa = opts?.allowJa ?? false;
   const allowReality = opts?.allowReality ?? false;
   const allowHentai = opts?.allowHentai ?? false;
+  const allowMissingOverview = opts?.allowMissingOverview ?? !requireReleased;
+  const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
-    .filter((i) => qualityFilter(i, minVotes))
+    .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
     .filter((i) => (requireReleased ? isReleased(i) : true))
-    .filter((i) => hasAcceptedAudio(i, allowJa))
+    .filter((i) => hasAcceptedAudio(i, allowJa, allowAnyLang))
     .filter((i) => allowReality || !(i.genre_ids ?? []).includes(10764))
     .filter((i) => {
       if (allowHentai) return true;
@@ -732,7 +737,15 @@ export async function fetchSimilarMixed(
 ): Promise<Media[]> {
   const genres = await loadGenres();
   const seen = new Set<number>([id]);
-  const out: Media[] = [];
+  const candidates: { item: TmdbItem; type: "movie" | "tv" }[] = [];
+
+  // 1) Detalhes do conteúdo atual para extrair gêneros de referência.
+  let refGenreIds: number[] = [];
+  try {
+    const detail = await tget<any>(`/${type}/${id}`);
+    refGenreIds = (detail.genres ?? []).map((g: any) => g.id);
+  } catch {}
+  const refGenreSet = new Set(refGenreIds);
 
   const push = (items: TmdbItem[], fallback: "movie" | "tv") => {
     for (const it of items) {
@@ -740,40 +753,57 @@ export async function fetchSimilarMixed(
       if (!it.poster_path && !it.backdrop_path) continue;
       if (isBlacklistedAnime(it)) continue;
       seen.add(it.id);
-      out.push(mapItem(it, fallback, genres));
+      candidates.push({ item: it, type: fallback });
     }
   };
 
-  // 1) similares + recomendações do tipo original
-  for (const ep of [`/${type}/${id}/similar`, `/${type}/${id}/recommendations`]) {
-    for (let p = 1; p <= 3 && out.length < minCount * 2; p++) {
-      try {
-        const d = await tget<{ results: TmdbItem[] }>(ep, { page: p });
-        push(d.results, type);
-      } catch {}
-      if (out.length >= minCount * 2) break;
-    }
-    if (out.length >= minCount * 2) break;
-  }
+  // 2) Recomendações TMDB (mesmo tipo) — prioridade máxima.
+  try {
+    const d = await tget<{ results: TmdbItem[] }>(`/${type}/${id}/recommendations`, { page: 1 });
+    push(d.results, type);
+  } catch {}
 
-  // 2) cross-tipo: se filme, buscar séries do mesmo gênero; e vice-versa
-  if (out.length < minCount) {
-    try {
-      const detail = await tget<any>(`/${type}/${id}`);
-      const genreIds = (detail.genres ?? []).map((g: any) => g.id).slice(0, 3).join(",");
-      if (genreIds) {
-        const otherType = type === "movie" ? "tv" : "movie";
+  // 3) Discover por gêneros — filme E série, com filtro de qualidade.
+  if (refGenreIds.length > 0) {
+    const genreParam = refGenreIds.slice(0, 3).join(",");
+    for (const otherType of ["movie", "tv"] as const) {
+      try {
         const d = await tget<{ results: TmdbItem[] }>(`/discover/${otherType}`, {
-          with_genres: genreIds,
+          with_genres: genreParam,
           sort_by: "popularity.desc",
-          "vote_count.gte": 100,
+          "vote_count.gte": 50,
+          "vote_average.gte": 5,
         });
         push(d.results, otherType);
-      }
+      } catch {}
+    }
+  }
+
+  // 4) Fallback /similar (geralmente ruim, mas garante volume).
+  if (candidates.length < minCount) {
+    try {
+      const d = await tget<{ results: TmdbItem[] }>(`/${type}/${id}/similar`, { page: 1 });
+      push(d.results, type);
     } catch {}
   }
 
-  return out.slice(0, Math.max(minCount, 30));
+  // 5) Pontuação por overlap de gêneros + popularidade.
+  const scored = candidates.map(({ item, type: t }) => {
+    const overlap = (item.genre_ids ?? []).filter((g) => refGenreSet.has(g)).length;
+    const pop = (item.vote_count ?? 0);
+    return { item, type: t, score: overlap * 1000 + Math.min(pop, 5000) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+
+  // Filtra: precisa ter pelo menos 1 gênero em comum (quando há referência).
+  const filtered = refGenreIds.length > 0
+    ? scored.filter((s) => (s.item.genre_ids ?? []).some((g) => refGenreSet.has(g)))
+    : scored;
+
+  // Garante mínimo: se filtro estrito remove muito, completa com top-pop.
+  const finalList = filtered.length >= 10 ? filtered : scored;
+
+  return finalList.slice(0, Math.max(minCount, 30)).map((s) => mapItem(s.item, s.type, genres));
 }
 
 // ============ Em Breve por ano específico ============

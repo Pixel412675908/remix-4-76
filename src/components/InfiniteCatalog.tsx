@@ -36,16 +36,24 @@ interface Props {
 
 function matchesOption(m: Media, opt: GenreFilterOption): boolean {
   const lang = (m.originalLanguage || "").toLowerCase();
-  if (opt.matchLangs && opt.matchLangs.includes(lang)) return true;
-  if (opt.excludeLangs && !opt.excludeLangs.includes(lang)) return true;
-  if (opt.matchGenres) {
-    const norm = m.genres.map((g) => g.toLowerCase());
-    for (const needle of opt.matchGenres) {
-      const n = needle.toLowerCase();
-      if (norm.some((g) => g.includes(n))) return true;
-    }
+  // Quando há restrição de idioma, ela é OBRIGATÓRIA (não atalho).
+  if (opt.matchLangs && opt.matchLangs.length > 0) {
+    if (!opt.matchLangs.includes(lang)) return false;
+    if (!opt.matchGenres || opt.matchGenres.length === 0) return true;
   }
-  return false;
+  if (opt.excludeLangs && opt.excludeLangs.length > 0) {
+    if (opt.excludeLangs.includes(lang)) return false;
+    if (!opt.matchGenres || opt.matchGenres.length === 0) return true;
+  }
+  if (opt.matchGenres && opt.matchGenres.length > 0) {
+    const norm = (m.genres ?? []).map((g) => g.toLowerCase().trim());
+    for (const needle of opt.matchGenres) {
+      const n = needle.toLowerCase().trim();
+      if (norm.some((g) => g === n || g.includes(n) || n.includes(g))) return true;
+    }
+    return false;
+  }
+  return true;
 }
 
 export function InfiniteCatalog({
@@ -139,6 +147,17 @@ export function InfiniteCatalog({
 
   const visible = sortMediaForAccount(genreFiltered, account);
 
+  // Auto-load mais páginas quando há filtro ativo e poucos resultados visíveis.
+  useEffect(() => {
+    if (activeGenres.size === 0) return;
+    if (loading || done) return;
+    if (visible.length >= 24) return;
+    if (page >= maxPages) return;
+    const next = page + 1;
+    setPage(next);
+    loadPage(next);
+  }, [activeGenres, visible.length, loading, done, page, maxPages, loadPage]);
+
   const openFilters = () => {
     setPendingGenres(new Set(activeGenres));
     setFilterOpen(true);
@@ -147,7 +166,11 @@ export function InfiniteCatalog({
     setActiveGenres(new Set(pendingGenres));
     setFilterOpen(false);
   };
-  const clear = () => setPendingGenres(new Set());
+  const clear = () => {
+    // Limpa tanto o painel quanto o filtro aplicado imediatamente.
+    setPendingGenres(new Set());
+    setActiveGenres(new Set());
+  };
   const togglePending = (label: string) =>
     setPendingGenres((prev) => {
       const next = new Set(prev);
