@@ -94,11 +94,12 @@ const IndexHome = () => {
       .filter((r) => r.items.length > 0);
   }, [rows, account, activeProfile]);
 
-  // Heroes filtrados
+  // Heroes filtrados — exatamente 6
   const heroCandidates = useMemo<Media[]>(() => {
     const allowed = heroes.filter((m) => canWatch(m, activeProfile, account));
     const ordered = sortMediaForAccount(allowed, account);
-    return ordered.length ? ordered : allowed;
+    const pool = ordered.length ? ordered : allowed;
+    return pool.slice(0, 6);
   }, [heroes, account, activeProfile]);
 
   useEffect(() => {
