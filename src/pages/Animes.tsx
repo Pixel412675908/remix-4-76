@@ -1,4 +1,4 @@
-import { InfiniteCatalog } from "@/components/InfiniteCatalog";
+import { InfiniteCatalog, ANIME_GENRE_OPTIONS } from "@/components/InfiniteCatalog";
 import { fetchAnime, countAnime } from "@/lib/tmdb";
 
 export default function Animes() {
@@ -8,6 +8,7 @@ export default function Animes() {
       subtitle="Os melhores animes japoneses, em ordem de popularidade."
       loaders={[{ label: "anime", loader: fetchAnime }]}
       totalCount={countAnime}
+      genreOptions={ANIME_GENRE_OPTIONS}
     />
   );
 }
