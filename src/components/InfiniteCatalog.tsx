@@ -36,16 +36,24 @@ interface Props {
 
 function matchesOption(m: Media, opt: GenreFilterOption): boolean {
   const lang = (m.originalLanguage || "").toLowerCase();
-  if (opt.matchLangs && opt.matchLangs.includes(lang)) return true;
-  if (opt.excludeLangs && !opt.excludeLangs.includes(lang)) return true;
-  if (opt.matchGenres) {
-    const norm = m.genres.map((g) => g.toLowerCase());
-    for (const needle of opt.matchGenres) {
-      const n = needle.toLowerCase();
-      if (norm.some((g) => g.includes(n))) return true;
-    }
+  // Quando há restrição de idioma, ela é OBRIGATÓRIA (não atalho).
+  if (opt.matchLangs && opt.matchLangs.length > 0) {
+    if (!opt.matchLangs.includes(lang)) return false;
+    if (!opt.matchGenres || opt.matchGenres.length === 0) return true;
   }
-  return false;
+  if (opt.excludeLangs && opt.excludeLangs.length > 0) {
+    if (opt.excludeLangs.includes(lang)) return false;
+    if (!opt.matchGenres || opt.matchGenres.length === 0) return true;
+  }
+  if (opt.matchGenres && opt.matchGenres.length > 0) {
+    const norm = (m.genres ?? []).map((g) => g.toLowerCase().trim());
+    for (const needle of opt.matchGenres) {
+      const n = needle.toLowerCase().trim();
+      if (norm.some((g) => g === n || g.includes(n) || n.includes(g))) return true;
+    }
+    return false;
+  }
+  return true;
 }
 
 export function InfiniteCatalog({
