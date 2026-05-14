@@ -880,3 +880,21 @@ export async function fetchUpcomingAnimationByYear(year: number, page = 1): Prom
   const filtered = data.results.filter((r) => r.original_language !== "ja");
   return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
 }
+
+export async function fetchUpcomingNovelasByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const langs = ["pt", "es", "tr", "ko"];
+  const lang = langs[(page - 1) % langs.length];
+  const innerPage = Math.floor((page - 1) / langs.length) + 1;
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page: innerPage,
+    with_original_language: lang,
+    with_genres: lang === "tr" ? 18 : 10766,
+    sort_by: "first_air_date.asc",
+    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  });
+  const genres = await loadGenres();
+  return data.results
+    .filter((i) => i.poster_path || i.backdrop_path)
+    .map((i) => mapItem(i, "tv", genres));
+}
