@@ -464,36 +464,34 @@ export async function fetchHeroPool(): Promise<Media[]> {
 }
 
 // ============ Contadores totais por categoria ============
-async function totalFor(path: string, params: Record<string, string | number> = {}): Promise<number> {
+// As páginas de categoria exibem APENAS contagem real do banco local.
+// Não usar total_results do TMDB aqui: isso vira número inflado/falso para o catálogo.
+async function countConteudosByTipo(tipo: "filme" | "serie" | "anime" | "desenho" | "novela"): Promise<number> {
   try {
-    const data = await tget<{ total_results: number }>(path, { ...params, page: 1 });
-    return data.total_results ?? 0;
-  } catch { return 0; }
+    const { count, error } = await (supabase as any)
+      .from("conteudos")
+      .select("*", { count: "exact", head: true })
+      .eq("tipo", tipo);
+    if (error) throw error;
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 export async function countMovies(): Promise<number> {
-  return totalFor("/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100 });
+  return countConteudosByTipo("filme");
 }
 export async function countSeries(): Promise<number> {
-  return totalFor("/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, without_genres: 10764 });
+  return countConteudosByTipo("serie");
 }
 export async function countAnime(): Promise<number> {
-  return totalFor("/discover/tv", {
-    with_genres: 16,
-    with_original_language: "ja",
-    "vote_count.gte": 100,
-    "vote_average.gte": 7.0,
-    without_genres: 10749,
-  });
+  return countConteudosByTipo("anime");
 }
 export async function countAnimation(): Promise<number> {
-  return totalFor("/discover/tv", { with_genres: 16, without_original_language: "ja" });
+  return countConteudosByTipo("desenho");
 }
 export async function countNovelas(): Promise<number> {
-  const [a, b] = await Promise.all([
-    totalFor("/discover/tv", { with_genres: 10766 }),
-    totalFor("/discover/tv", { with_original_language: "tr", with_genres: 18 }),
-  ]);
-  return a + b;
+  return countConteudosByTipo("novela");
 }
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {
