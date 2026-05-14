@@ -152,12 +152,7 @@ export default function EmBreve() {
       next.has(k) ? next.delete(k) : next.add(k);
       return next;
     });
-  const togglePendingYear = (y: number) =>
-    setPendingYears((prev) => {
-      const next = new Set(prev);
-      next.has(y) ? next.delete(y) : next.add(y);
-      return next;
-    });
+  const togglePendingYear = (y: number) => setPendingYears(new Set([y]));
 
   return (
     <div className="min-h-screen bg-background">
