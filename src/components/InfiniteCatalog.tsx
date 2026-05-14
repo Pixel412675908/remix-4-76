@@ -128,7 +128,7 @@ export function InfiniteCatalog({
           });
         }
       },
-      { rootMargin: "800px" }
+      { rootMargin: "1800px" }
     );
     obs.observe(el);
     return () => obs.disconnect();

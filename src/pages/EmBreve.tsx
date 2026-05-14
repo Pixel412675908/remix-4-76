@@ -12,14 +12,16 @@ import {
   fetchUpcomingTvByYear,
   fetchUpcomingAnimeByYear,
   fetchUpcomingAnimationByYear,
+  fetchUpcomingNovelasByYear,
 } from "@/lib/tmdb";
 import type { Media } from "@/types/media";
 
-type CatKey = "movie" | "series" | "anime" | "animation";
+type CatKey = "movie" | "series" | "novela" | "anime" | "animation";
 
 const CATEGORIES: { key: CatKey; label: string; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
   { key: "movie", label: "Filmes", loaderByYear: fetchUpcomingMoviesByYear },
   { key: "series", label: "Séries", loaderByYear: fetchUpcomingTvByYear },
+  { key: "novela", label: "Novelas", loaderByYear: fetchUpcomingNovelasByYear },
   { key: "anime", label: "Animes", loaderByYear: fetchUpcomingAnimeByYear },
   { key: "animation", label: "Desenhos", loaderByYear: fetchUpcomingAnimationByYear },
 ];
@@ -99,13 +101,16 @@ export default function EmBreve() {
     const filtered = items
       .filter((m) => canWatch(m, activeProfile, account))
       .filter((m) => {
-        const isAnime = m.type === "tv" && m.originalLanguage === "ja";
-        const isAnimation = m.type === "tv" && m.originalLanguage !== "ja" &&
+        const lang = (m.originalLanguage || "").toLowerCase();
+        const isAnime = m.type === "tv" && lang === "ja";
+        const isAnimation = m.type === "tv" && lang !== "ja" &&
           (m.genres ?? []).some((g) => /anim/i.test(g));
+        const isNovela = m.type === "tv" && (m.genres ?? []).some((g) => /soap/i.test(g));
         let cat: CatKey;
         if (m.type === "movie") cat = "movie";
         else if (isAnime) cat = "anime";
         else if (isAnimation) cat = "animation";
+        else if (isNovela) cat = "novela";
         else cat = "series";
         if (!activeCats.has(cat)) return false;
         if (!m.releaseDate) return false;
@@ -113,23 +118,25 @@ export default function EmBreve() {
         return true;
       });
 
-    // Tiers de qualidade: alto (>=8), médio (6-8), baixo (<6).
-    // Dentro de cada tier ordena por rating DESC e data ASC.
-    const tierOf = (m: Media) => {
-      const r = m.rating ?? 0;
-      if (r >= 8) return 0;
-      if (r >= 6) return 1;
-      return 2;
+    // Prioridade: ocidentais populares primeiro, asiáticos/animes por último.
+    // Tier por idioma: 0=ocidental popular, 1=ocidental, 2=asiático/anime.
+    const langTier = (m: Media) => {
+      const lang = (m.originalLanguage || "").toLowerCase();
+      const asian = ["ja", "ko", "zh", "th"];
+      if (asian.includes(lang)) return 2;
+      // Filme/série ocidental — prioriza inglês/português/espanhol como mais populares.
+      const western = ["en", "pt", "es", "fr", "it", "de"];
+      if (western.includes(lang)) return 0;
+      return 1;
     };
     const ranked = [...filtered].sort((a, b) => {
-      const ta = tierOf(a), tb = tierOf(b);
-      if (ta !== tb) return ta - tb;
+      const la = langTier(a), lb = langTier(b);
+      if (la !== lb) return la - lb;
+      // Dentro do mesmo tier de idioma, ordena por popularidade (rating) e data.
       if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
       return (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "");
     });
 
-    // Garante que os 100 primeiros sejam o tier alto (já vêm primeiro pela ordenação).
-    // Reagrupa por ano respeitando a ordem global de qualidade.
     const sorted = ranked;
 
     const map = new Map<number, Media[]>();

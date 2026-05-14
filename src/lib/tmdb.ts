@@ -214,13 +214,16 @@ export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   return mapList(data.results, "movie", { minVotes: 50 });
 }
 export async function fetchAnimation(page = 1): Promise<Media[]> {
-  // Desenhos: animação TV NÃO-japonesa. Filtro duplo cliente-side garante exclusão.
+  // Desenhos: animação TV NÃO-japonesa. Filtros relaxados para ampliar catálogo (>=1500).
+  const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc"] as const;
+  const sort = sortModes[(page - 1) % sortModes.length];
+  const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 16, without_original_language: "ja",
-    sort_by: "popularity.desc", "vote_count.gte": 100, "first_air_date.lte": TODAY,
+    page: innerPage, with_genres: 16, without_original_language: "ja",
+    sort_by: sort, "vote_count.gte": 20, "first_air_date.lte": TODAY,
   });
   const filtered = data.results.filter((r) => r.original_language !== "ja");
-  return mapList(filtered, "tv", { minVotes: 100 });
+  return mapList(filtered, "tv", { minVotes: 20 });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
@@ -281,28 +284,30 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
+  // Animes: catálogo amplo (>=2000). Mantém qualidade mínima e filtra hentai.
+  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc"] as const;
+  const sort = sortModes[(page - 1) % sortModes.length];
+  const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page,
+    page: innerPage,
     with_genres: 16,
     with_original_language: "ja",
     include_adult: false,
-    "vote_count.gte": 100,
-    "vote_average.gte": 7.0,
+    "vote_count.gte": 20,
+    "vote_average.gte": 5.5,
     without_genres: 10749,
-    sort_by: "popularity.desc",
+    sort_by: sort,
   });
   let filtered = data.results.filter(
     (r) => r.original_language === "ja" && !r.adult && !isBlacklistedAnime(r)
   );
-  // Garante whitelist (Shokugeki etc.) na primeira página.
   if (page === 1) {
     const whitelist = await fetchTvByIds(ANIME_WHITELIST_IDS);
     const existingIds = new Set(filtered.map((f) => f.id));
     filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
   }
   return mapList(filtered, "tv", {
-    minVotes: 0, // whitelist pode ter votos baixos no fetch direto
+    minVotes: 0,
     requireReleased: false,
     allowJa: true,
     allowHentai: false,
@@ -317,33 +322,36 @@ export async function fetchReality(_page = 1): Promise<Media[]> {
 // 400 internacionais (pt/es/en/ko, soap opera) + 400 turcas (drama tr).
 // Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
 export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
-  // Alterna idioma por página para diversificar.
-  const langs = ["pt", "es", "en", "ko"];
-  const lang = langs[(page - 1) % langs.length];
-  const innerPage = Math.floor((page - 1) / langs.length) + 1;
+  // Mais idiomas + alterna sort para ampliar catálogo.
+  const langs = ["pt", "es", "en", "ko", "it", "fr"];
+  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const variant = (page - 1) % (langs.length * sorts.length);
+  const lang = langs[variant % langs.length];
+  const sort = sorts[Math.floor(variant / langs.length) % sorts.length];
+  const innerPage = Math.floor((page - 1) / (langs.length * sorts.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_genres: 10766, with_original_language: lang,
-    sort_by: "popularity.desc", "vote_count.gte": 50,
-    "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
+    sort_by: sort, "vote_count.gte": 10,
+    "first_air_date.gte": "1990-01-01", "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 50 });
+  return mapList(data.results, "tv", { minVotes: 10 });
 }
 export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
+  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const sort = sorts[(page - 1) % sorts.length];
+  const innerPage = Math.floor((page - 1) / sorts.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_original_language: "tr", with_genres: 18,
-    sort_by: "popularity.desc", "vote_count.gte": 20,
+    page: innerPage, with_original_language: "tr", with_genres: 18,
+    sort_by: sort, "vote_count.gte": 5,
     "first_air_date.lte": TODAY,
   });
-  // Turco não está em ALLOWED_AUDIO_LANGS — bypass via mapList allowJa não cabe;
-  // usamos mapItem direto com filtros mínimos.
   const genres = await loadGenres();
   return data.results
-    .filter((i) => qualityFilter(i, 20))
+    .filter((i) => qualityFilter(i, 5))
     .filter((i) => isReleased(i))
     .map((i) => mapItem(i, "tv", genres));
 }
 export async function fetchNovelas(page = 1): Promise<Media[]> {
-  // Combina os dois blocos alternando.
   if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
   return fetchNovelasTurkish(page / 2);
 }
@@ -871,4 +879,22 @@ export async function fetchUpcomingAnimationByYear(year: number, page = 1): Prom
   });
   const filtered = data.results.filter((r) => r.original_language !== "ja");
   return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
+}
+
+export async function fetchUpcomingNovelasByYear(year: number, page = 1): Promise<Media[]> {
+  const { gte, lte } = yearRange(year);
+  const langs = ["pt", "es", "tr", "ko"];
+  const lang = langs[(page - 1) % langs.length];
+  const innerPage = Math.floor((page - 1) / langs.length) + 1;
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page: innerPage,
+    with_original_language: lang,
+    with_genres: lang === "tr" ? 18 : 10766,
+    sort_by: "first_air_date.asc",
+    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  });
+  const genres = await loadGenres();
+  return data.results
+    .filter((i) => i.poster_path || i.backdrop_path)
+    .map((i) => mapItem(i, "tv", genres));
 }
