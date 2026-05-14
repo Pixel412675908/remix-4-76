@@ -284,28 +284,30 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes premium: apenas alta qualidade, sem romance explícito, sem hentai.
+  // Animes: catálogo amplo (>=2000). Mantém qualidade mínima e filtra hentai.
+  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc"] as const;
+  const sort = sortModes[(page - 1) % sortModes.length];
+  const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page,
+    page: innerPage,
     with_genres: 16,
     with_original_language: "ja",
     include_adult: false,
-    "vote_count.gte": 100,
-    "vote_average.gte": 7.0,
+    "vote_count.gte": 20,
+    "vote_average.gte": 5.5,
     without_genres: 10749,
-    sort_by: "popularity.desc",
+    sort_by: sort,
   });
   let filtered = data.results.filter(
     (r) => r.original_language === "ja" && !r.adult && !isBlacklistedAnime(r)
   );
-  // Garante whitelist (Shokugeki etc.) na primeira página.
   if (page === 1) {
     const whitelist = await fetchTvByIds(ANIME_WHITELIST_IDS);
     const existingIds = new Set(filtered.map((f) => f.id));
     filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
   }
   return mapList(filtered, "tv", {
-    minVotes: 0, // whitelist pode ter votos baixos no fetch direto
+    minVotes: 0,
     requireReleased: false,
     allowJa: true,
     allowHentai: false,
