@@ -1,5 +1,6 @@
 // TMDB client — catálogo expandido com filtros, paginação, coleções e novas seções.
 
+import { supabase } from "@/integrations/supabase/client";
 import { Media, Movie, Series, ContentRow, Episode, Season } from "@/types/media";
 
 const TMDB_API_KEY = "6878dca421d0d46297b2e433d48fe964";
@@ -42,6 +43,11 @@ interface TmdbItem {
   genre_ids?: number[];
   adult?: boolean;
   original_language?: string;
+}
+
+interface TmdbPage<T> {
+  results: T[];
+  total_pages?: number;
 }
 
 let GENRE_MAP: Record<number, string> | null = null;
