@@ -465,7 +465,7 @@ export async function fetchHeroPool(): Promise<Media[]> {
 
 // ============ Contadores totais por categoria ============
 // As páginas de categoria exibem APENAS contagem real do banco local.
-// Não usar total_results do TMDB aqui: isso vira número inflado/falso para o catálogo.
+// Não usar totais de APIs externas aqui: isso vira número inflado/falso para o catálogo.
 async function countConteudosByTipo(tipo: "filme" | "serie" | "anime" | "desenho" | "novela"): Promise<number> {
   try {
     const { count, error } = await (supabase as any)
