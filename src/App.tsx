@@ -68,6 +68,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <UserAvatarProvider>
+              <GlobalEffects />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/login" element={<RedirectAuthed><Login /></RedirectAuthed>} />
