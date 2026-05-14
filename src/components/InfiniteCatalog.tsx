@@ -145,7 +145,15 @@ export function InfiniteCatalog({
     return allowed.filter((m) => opts.some((o) => matchesOption(m, o)));
   }, [allowed, genreOptions, activeGenres]);
 
-  const visible = sortMediaForAccount(genreFiltered, account);
+  // Ordena por qualidade: rating DESC, ano DESC como desempate.
+  // Os melhores títulos da categoria sempre aparecem primeiro.
+  const visible = useMemo(() => {
+    const accountSorted = sortMediaForAccount(genreFiltered, account);
+    return [...accountSorted].sort((a, b) => {
+      if (b.rating !== a.rating) return b.rating - a.rating;
+      return (b.year ?? 0) - (a.year ?? 0);
+    });
+  }, [genreFiltered, account]);
 
   // Auto-load mais páginas quando há filtro ativo e poucos resultados visíveis.
   useEffect(() => {
