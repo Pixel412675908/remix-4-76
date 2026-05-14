@@ -8,29 +8,38 @@ import { canWatch } from "@/lib/maturity";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
-  fetchUpcomingMovies,
-  fetchUpcomingTv,
-  fetchUpcomingAnime,
-  fetchUpcomingAnimation,
   fetchUpcomingMoviesByYear,
   fetchUpcomingTvByYear,
   fetchUpcomingAnimeByYear,
   fetchUpcomingAnimationByYear,
-  type RowLoader,
 } from "@/lib/tmdb";
 import type { Media } from "@/types/media";
 
 type CatKey = "movie" | "series" | "anime" | "animation";
 
-const CATEGORIES: { key: CatKey; label: string; loader: RowLoader; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
-  { key: "movie", label: "Filmes", loader: fetchUpcomingMovies, loaderByYear: fetchUpcomingMoviesByYear },
-  { key: "series", label: "Séries", loader: fetchUpcomingTv, loaderByYear: fetchUpcomingTvByYear },
-  { key: "anime", label: "Animes", loader: fetchUpcomingAnime, loaderByYear: fetchUpcomingAnimeByYear },
-  { key: "animation", label: "Desenhos", loader: fetchUpcomingAnimation, loaderByYear: fetchUpcomingAnimationByYear },
+const CATEGORIES: { key: CatKey; label: string; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
+  { key: "movie", label: "Filmes", loaderByYear: fetchUpcomingMoviesByYear },
+  { key: "series", label: "Séries", loaderByYear: fetchUpcomingTvByYear },
+  { key: "anime", label: "Animes", loaderByYear: fetchUpcomingAnimeByYear },
+  { key: "animation", label: "Desenhos", loaderByYear: fetchUpcomingAnimationByYear },
 ];
 
 const YEAR_OPTIONS = [2026, 2027, 2028, 2029, 2030] as const;
-const MAX_PAGES = 30;
+
+function defaultCatalogYear(): number {
+  const year = new Date().getFullYear();
+  return (YEAR_OPTIONS as readonly number[]).includes(year) ? year : YEAR_OPTIONS[0];
+}
+
+async function loadEveryPage(loaderByYear: (y: number, p: number) => Promise<Media[]>, year: number): Promise<Media[]> {
+  const all: Media[] = [];
+  for (let page = 1; ; page += 1) {
+    const chunk = await loaderByYear(year, page).catch(() => [] as Media[]);
+    if (chunk.length === 0) break;
+    all.push(...chunk);
+  }
+  return all;
+}
 
 function formatBrDate(iso?: string): string {
   if (!iso) return "data a confirmar";
