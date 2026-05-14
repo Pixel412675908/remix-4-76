@@ -28,7 +28,16 @@ import EmBreve from "./pages/EmBreve.tsx";
 import Colecoes from "./pages/Colecoes.tsx";
 import CollectionDetail from "./pages/CollectionDetail.tsx";
 
+import { useScrollRestoration } from "@/hooks/useScrollRestoration";
+import { useCatalogCountsLogger } from "@/hooks/useCatalogCountsLogger";
+
 const queryClient = new QueryClient();
+
+function GlobalEffects() {
+  useScrollRestoration();
+  useCatalogCountsLogger();
+  return null;
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isExplorer, loading } = useAuth();
