@@ -40,7 +40,7 @@ const Browse = () => {
       key={category}
       title={cfg.title}
       loaders={cfg.loaders}
-      maxPages={20}
+      maxPages={250}
       totalCount={cfg.totalCount}
       genreOptions={cfg.genreOptions}
     />
