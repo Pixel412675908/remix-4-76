@@ -322,33 +322,36 @@ export async function fetchReality(_page = 1): Promise<Media[]> {
 // 400 internacionais (pt/es/en/ko, soap opera) + 400 turcas (drama tr).
 // Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
 export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
-  // Alterna idioma por página para diversificar.
-  const langs = ["pt", "es", "en", "ko"];
-  const lang = langs[(page - 1) % langs.length];
-  const innerPage = Math.floor((page - 1) / langs.length) + 1;
+  // Mais idiomas + alterna sort para ampliar catálogo.
+  const langs = ["pt", "es", "en", "ko", "it", "fr"];
+  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const variant = (page - 1) % (langs.length * sorts.length);
+  const lang = langs[variant % langs.length];
+  const sort = sorts[Math.floor(variant / langs.length) % sorts.length];
+  const innerPage = Math.floor((page - 1) / (langs.length * sorts.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_genres: 10766, with_original_language: lang,
-    sort_by: "popularity.desc", "vote_count.gte": 50,
-    "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
+    sort_by: sort, "vote_count.gte": 10,
+    "first_air_date.gte": "1990-01-01", "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 50 });
+  return mapList(data.results, "tv", { minVotes: 10 });
 }
 export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
+  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const sort = sorts[(page - 1) % sorts.length];
+  const innerPage = Math.floor((page - 1) / sorts.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_original_language: "tr", with_genres: 18,
-    sort_by: "popularity.desc", "vote_count.gte": 20,
+    page: innerPage, with_original_language: "tr", with_genres: 18,
+    sort_by: sort, "vote_count.gte": 5,
     "first_air_date.lte": TODAY,
   });
-  // Turco não está em ALLOWED_AUDIO_LANGS — bypass via mapList allowJa não cabe;
-  // usamos mapItem direto com filtros mínimos.
   const genres = await loadGenres();
   return data.results
-    .filter((i) => qualityFilter(i, 20))
+    .filter((i) => qualityFilter(i, 5))
     .filter((i) => isReleased(i))
     .map((i) => mapItem(i, "tv", genres));
 }
 export async function fetchNovelas(page = 1): Promise<Media[]> {
-  // Combina os dois blocos alternando.
   if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
   return fetchNovelasTurkish(page / 2);
 }
