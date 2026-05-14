@@ -109,10 +109,9 @@ export function InfiniteCatalog({
   useEffect(() => {
     seen.current.clear();
     setItems([]);
-    setPage(2);
+    setPage(1);
     setDone(false);
-    // Pré-carrega 2 páginas iniciais para reduzir lag no scroll.
-    loadPage(1).then(() => loadPage(2));
+    loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaders.map((l) => l.label).join("|")]);
 
