@@ -264,17 +264,6 @@ export default function EmBreve() {
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Ano</p>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setPendingYears(new Set())}
-                    className={cn(
-                      "px-3.5 py-1.5 rounded-full text-xs border transition-colors",
-                      pendingYears.size === 0
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-white/[0.04] border-white/10 text-foreground/80 hover:bg-white/[0.08]"
-                    )}
-                  >
-                    Todos
-                  </button>
                   {YEAR_OPTIONS.map((y) => {
                     const on = pendingYears.has(y);
                     return (
