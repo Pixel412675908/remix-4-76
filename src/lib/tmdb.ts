@@ -464,34 +464,55 @@ export async function fetchHeroPool(): Promise<Media[]> {
 }
 
 // ============ Contadores totais por categoria ============
-// As páginas de categoria exibem APENAS contagem real do banco local.
-// Não usar totais de APIs externas aqui: isso vira número inflado/falso para o catálogo.
-async function countConteudosByTipo(tipo: "filme" | "serie" | "anime" | "desenho" | "novela"): Promise<number> {
+// Conta via TMDB usando os mesmos filtros dos respectivos loaders (total_results).
+async function countDiscover(
+  kind: "movie" | "tv",
+  params: Record<string, string | number | boolean | undefined>
+): Promise<number> {
   try {
-    const { count, error } = await (supabase as any)
-      .from("conteudos")
-      .select("*", { count: "exact", head: true })
-      .eq("tipo", tipo);
-    if (error) throw error;
-    return count ?? 0;
+    const data = await tget<{ total_results?: number }>(`/discover/${kind}`, { ...params, page: 1 });
+    return data.total_results ?? 0;
   } catch {
     return 0;
   }
 }
 export async function countMovies(): Promise<number> {
-  return countConteudosByTipo("filme");
+  return countDiscover("movie", {
+    sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    "release_date.lte": TODAY, region: REGION,
+  });
 }
 export async function countSeries(): Promise<number> {
-  return countConteudosByTipo("serie");
+  return countDiscover("tv", {
+    sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    "first_air_date.lte": TODAY,
+  });
 }
 export async function countAnime(): Promise<number> {
-  return countConteudosByTipo("anime");
+  return countDiscover("tv", {
+    with_genres: 16, with_original_language: "ja", include_adult: false,
+    "vote_count.gte": 100, "vote_average.gte": 7.0, without_genres: 10749,
+  });
 }
 export async function countAnimation(): Promise<number> {
-  return countConteudosByTipo("desenho");
+  return countDiscover("tv", {
+    with_genres: 16, without_original_language: "ja",
+    "vote_count.gte": 100, "first_air_date.lte": TODAY,
+  });
 }
 export async function countNovelas(): Promise<number> {
-  return countConteudosByTipo("novela");
+  const langs = ["pt", "es", "en", "ko"];
+  const intl = await Promise.all(langs.map((lang) =>
+    countDiscover("tv", {
+      with_genres: 10766, with_original_language: lang,
+      "vote_count.gte": 50, "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
+    })
+  ));
+  const tr = await countDiscover("tv", {
+    with_original_language: "tr", with_genres: 18,
+    "vote_count.gte": 20, "first_air_date.lte": TODAY,
+  });
+  return intl.reduce((a, b) => a + b, 0) + tr;
 }
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {

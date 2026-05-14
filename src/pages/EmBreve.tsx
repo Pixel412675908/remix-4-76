@@ -31,15 +31,18 @@ function defaultCatalogYear(): number {
   return (YEAR_OPTIONS as readonly number[]).includes(year) ? year : YEAR_OPTIONS[0];
 }
 
+const MAX_PAGES_PER_YEAR = 8;
 async function loadEveryPage(loaderByYear: (y: number, p: number) => Promise<Media[]>, year: number): Promise<Media[]> {
   const all: Media[] = [];
-  for (let page = 1; ; page += 1) {
+  for (let page = 1; page <= MAX_PAGES_PER_YEAR; page += 1) {
     const chunk = await loaderByYear(year, page).catch(() => [] as Media[]);
     if (chunk.length === 0) break;
     all.push(...chunk);
   }
   return all;
 }
+
+// Em Breve aceita itens sem releaseDate para não esconder lançamentos a confirmar.
 
 function formatBrDate(iso?: string): string {
   if (!iso) return "data a confirmar";
