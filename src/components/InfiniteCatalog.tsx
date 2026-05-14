@@ -193,13 +193,6 @@ export function InfiniteCatalog({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="font-display text-4xl md:text-6xl mb-2 tracking-wide">{title}</h1>
-            {(total != null || activeGenres.size > 0) && (
-              <p className="text-xs text-muted-foreground/80 mb-2">
-                {activeGenres.size > 0
-                  ? `${visible.length.toLocaleString("pt-BR")} ${visible.length === 1 ? "título corresponde" : "títulos correspondem"} ao filtro`
-                  : `${(total ?? 0).toLocaleString("pt-BR")} títulos disponíveis`}
-              </p>
-            )}
             {subtitle && <p className="text-muted-foreground mb-8">{subtitle}</p>}
           </div>
           {genreOptions && genreOptions.length > 0 && (

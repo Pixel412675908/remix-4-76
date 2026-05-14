@@ -111,14 +111,29 @@ export default function EmBreve() {
         if (!m.releaseDate) return false;
         if (!yearsToShow.has(m.year)) return false;
         return true;
-      })
-      .sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "");
       });
 
+    // Tiers de qualidade: alto (>=8), médio (6-8), baixo (<6).
+    // Dentro de cada tier ordena por rating DESC e data ASC.
+    const tierOf = (m: Media) => {
+      const r = m.rating ?? 0;
+      if (r >= 8) return 0;
+      if (r >= 6) return 1;
+      return 2;
+    };
+    const ranked = [...filtered].sort((a, b) => {
+      const ta = tierOf(a), tb = tierOf(b);
+      if (ta !== tb) return ta - tb;
+      if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
+      return (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "");
+    });
+
+    // Garante que os 100 primeiros sejam o tier alto (já vêm primeiro pela ordenação).
+    // Reagrupa por ano respeitando a ordem global de qualidade.
+    const sorted = ranked;
+
     const map = new Map<number, Media[]>();
-    for (const m of filtered) {
+    for (const m of sorted) {
       const key = m.releaseDate ? m.year : -1;
       const arr = map.get(key) ?? [];
       arr.push(m);
