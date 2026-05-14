@@ -133,7 +133,7 @@ export default function EmBreve() {
     const sorted = ranked;
 
     const map = new Map<number, Media[]>();
-    for (const m of filtered) {
+    for (const m of sorted) {
       const key = m.releaseDate ? m.year : -1;
       const arr = map.get(key) ?? [];
       arr.push(m);
