@@ -8,29 +8,38 @@ import { canWatch } from "@/lib/maturity";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
-  fetchUpcomingMovies,
-  fetchUpcomingTv,
-  fetchUpcomingAnime,
-  fetchUpcomingAnimation,
   fetchUpcomingMoviesByYear,
   fetchUpcomingTvByYear,
   fetchUpcomingAnimeByYear,
   fetchUpcomingAnimationByYear,
-  type RowLoader,
 } from "@/lib/tmdb";
 import type { Media } from "@/types/media";
 
 type CatKey = "movie" | "series" | "anime" | "animation";
 
-const CATEGORIES: { key: CatKey; label: string; loader: RowLoader; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
-  { key: "movie", label: "Filmes", loader: fetchUpcomingMovies, loaderByYear: fetchUpcomingMoviesByYear },
-  { key: "series", label: "Séries", loader: fetchUpcomingTv, loaderByYear: fetchUpcomingTvByYear },
-  { key: "anime", label: "Animes", loader: fetchUpcomingAnime, loaderByYear: fetchUpcomingAnimeByYear },
-  { key: "animation", label: "Desenhos", loader: fetchUpcomingAnimation, loaderByYear: fetchUpcomingAnimationByYear },
+const CATEGORIES: { key: CatKey; label: string; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
+  { key: "movie", label: "Filmes", loaderByYear: fetchUpcomingMoviesByYear },
+  { key: "series", label: "Séries", loaderByYear: fetchUpcomingTvByYear },
+  { key: "anime", label: "Animes", loaderByYear: fetchUpcomingAnimeByYear },
+  { key: "animation", label: "Desenhos", loaderByYear: fetchUpcomingAnimationByYear },
 ];
 
 const YEAR_OPTIONS = [2026, 2027, 2028, 2029, 2030] as const;
-const MAX_PAGES = 30;
+
+function defaultCatalogYear(): number {
+  const year = new Date().getFullYear();
+  return (YEAR_OPTIONS as readonly number[]).includes(year) ? year : YEAR_OPTIONS[0];
+}
+
+async function loadEveryPage(loaderByYear: (y: number, p: number) => Promise<Media[]>, year: number): Promise<Media[]> {
+  const all: Media[] = [];
+  for (let page = 1; ; page += 1) {
+    const chunk = await loaderByYear(year, page).catch(() => [] as Media[]);
+    if (chunk.length === 0) break;
+    all.push(...chunk);
+  }
+  return all;
+}
 
 function formatBrDate(iso?: string): string {
   if (!iso) return "data a confirmar";
@@ -45,34 +54,23 @@ export default function EmBreve() {
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeCats, setActiveCats] = useState<Set<CatKey>>(new Set(CATEGORIES.map((c) => c.key)));
-  const [activeYears, setActiveYears] = useState<Set<number>>(new Set()); // vazio = todos
+  const [activeYears, setActiveYears] = useState<Set<number>>(() => new Set([defaultCatalogYear()]));
   const [pendingCats, setPendingCats] = useState<Set<CatKey>>(activeCats);
   const [pendingYears, setPendingYears] = useState<Set<number>>(activeYears);
   const [unavailable, setUnavailable] = useState<Media | null>(null);
   const seen = useRef<Set<number>>(new Set());
 
-  // Recarrega quando o conjunto de anos selecionados muda — busca por ano
-  // específico no TMDB para garantir resultados em 2027/2028/2029/2030.
+  // Por padrão carrega o ano atual; anos futuros/passados só entram quando selecionados no filtro.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     seen.current.clear();
     (async () => {
       const tasks: Promise<Media[]>[] = [];
-      const yearsToFetch: number[] = activeYears.size > 0
-        ? Array.from(activeYears)
-        : [];
+      const yearsToFetch = activeYears.size > 0 ? Array.from(activeYears) : [defaultCatalogYear()];
       for (const c of CATEGORIES) {
-        if (yearsToFetch.length > 0) {
-          for (const y of yearsToFetch) {
-            for (let p = 1; p <= MAX_PAGES; p++) {
-              tasks.push(c.loaderByYear(y, p).catch(() => [] as Media[]));
-            }
-          }
-        } else {
-          for (let p = 1; p <= MAX_PAGES; p++) {
-            tasks.push(c.loader(p).catch(() => [] as Media[]));
-          }
+        for (const y of yearsToFetch) {
+          tasks.push(loadEveryPage(c.loaderByYear, y));
         }
       }
       const results = (await Promise.all(tasks)).flat();
@@ -94,7 +92,7 @@ export default function EmBreve() {
   // Aplica filtros + ordena por (ano asc, data asc).
   // Itens sem releaseDate vão para o bucket -1 ("data a confirmar").
   const grouped = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const yearsToShow = activeYears.size > 0 ? activeYears : new Set<number>([defaultCatalogYear()]);
     const filtered = items
       .filter((m) => canWatch(m, activeProfile, account))
       .filter((m) => {
@@ -107,11 +105,8 @@ export default function EmBreve() {
         else if (isAnimation) cat = "animation";
         else cat = "series";
         if (!activeCats.has(cat)) return false;
-        if (m.releaseDate && m.releaseDate < today) return false;
-        if (activeYears.size > 0) {
-          if (!m.releaseDate) return false;
-          if (!activeYears.has(m.year)) return false;
-        }
+        if (!m.releaseDate) return false;
+        if (!yearsToShow.has(m.year)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -148,7 +143,7 @@ export default function EmBreve() {
 
   const clear = () => {
     setPendingCats(new Set(CATEGORIES.map((c) => c.key)));
-    setPendingYears(new Set());
+    setPendingYears(new Set([defaultCatalogYear()]));
   };
 
   const togglePendingCat = (k: CatKey) =>
@@ -157,12 +152,7 @@ export default function EmBreve() {
       next.has(k) ? next.delete(k) : next.add(k);
       return next;
     });
-  const togglePendingYear = (y: number) =>
-    setPendingYears((prev) => {
-      const next = new Set(prev);
-      next.has(y) ? next.delete(y) : next.add(y);
-      return next;
-    });
+  const togglePendingYear = (y: number) => setPendingYears(new Set([y]));
 
   return (
     <div className="min-h-screen bg-background">
@@ -269,17 +259,6 @@ export default function EmBreve() {
               <div>
                 <p className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground mb-3">Ano</p>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setPendingYears(new Set())}
-                    className={cn(
-                      "px-3.5 py-1.5 rounded-full text-xs border transition-colors",
-                      pendingYears.size === 0
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-white/[0.04] border-white/10 text-foreground/80 hover:bg-white/[0.08]"
-                    )}
-                  >
-                    Todos
-                  </button>
                   {YEAR_OPTIONS.map((y) => {
                     const on = pendingYears.has(y);
                     return (
