@@ -12,14 +12,16 @@ import {
   fetchUpcomingTvByYear,
   fetchUpcomingAnimeByYear,
   fetchUpcomingAnimationByYear,
+  fetchUpcomingNovelasByYear,
 } from "@/lib/tmdb";
 import type { Media } from "@/types/media";
 
-type CatKey = "movie" | "series" | "anime" | "animation";
+type CatKey = "movie" | "series" | "novela" | "anime" | "animation";
 
 const CATEGORIES: { key: CatKey; label: string; loaderByYear: (y: number, p: number) => Promise<Media[]> }[] = [
   { key: "movie", label: "Filmes", loaderByYear: fetchUpcomingMoviesByYear },
   { key: "series", label: "Séries", loaderByYear: fetchUpcomingTvByYear },
+  { key: "novela", label: "Novelas", loaderByYear: fetchUpcomingNovelasByYear },
   { key: "anime", label: "Animes", loaderByYear: fetchUpcomingAnimeByYear },
   { key: "animation", label: "Desenhos", loaderByYear: fetchUpcomingAnimationByYear },
 ];
