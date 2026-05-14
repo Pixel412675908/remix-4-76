@@ -54,34 +54,23 @@ export default function EmBreve() {
   const [loading, setLoading] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
   const [activeCats, setActiveCats] = useState<Set<CatKey>>(new Set(CATEGORIES.map((c) => c.key)));
-  const [activeYears, setActiveYears] = useState<Set<number>>(new Set()); // vazio = todos
+  const [activeYears, setActiveYears] = useState<Set<number>>(() => new Set([defaultCatalogYear()]));
   const [pendingCats, setPendingCats] = useState<Set<CatKey>>(activeCats);
   const [pendingYears, setPendingYears] = useState<Set<number>>(activeYears);
   const [unavailable, setUnavailable] = useState<Media | null>(null);
   const seen = useRef<Set<number>>(new Set());
 
-  // Recarrega quando o conjunto de anos selecionados muda — busca por ano
-  // específico no TMDB para garantir resultados em 2027/2028/2029/2030.
+  // Por padrão carrega o ano atual; anos futuros/passados só entram quando selecionados no filtro.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     seen.current.clear();
     (async () => {
       const tasks: Promise<Media[]>[] = [];
-      const yearsToFetch: number[] = activeYears.size > 0
-        ? Array.from(activeYears)
-        : [];
+      const yearsToFetch = activeYears.size > 0 ? Array.from(activeYears) : [defaultCatalogYear()];
       for (const c of CATEGORIES) {
-        if (yearsToFetch.length > 0) {
-          for (const y of yearsToFetch) {
-            for (let p = 1; p <= MAX_PAGES; p++) {
-              tasks.push(c.loaderByYear(y, p).catch(() => [] as Media[]));
-            }
-          }
-        } else {
-          for (let p = 1; p <= MAX_PAGES; p++) {
-            tasks.push(c.loader(p).catch(() => [] as Media[]));
-          }
+        for (const y of yearsToFetch) {
+          tasks.push(loadEveryPage(c.loaderByYear, y));
         }
       }
       const results = (await Promise.all(tasks)).flat();
@@ -103,7 +92,6 @@ export default function EmBreve() {
   // Aplica filtros + ordena por (ano asc, data asc).
   // Itens sem releaseDate vão para o bucket -1 ("data a confirmar").
   const grouped = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
     const filtered = items
       .filter((m) => canWatch(m, activeProfile, account))
       .filter((m) => {
@@ -116,11 +104,8 @@ export default function EmBreve() {
         else if (isAnimation) cat = "animation";
         else cat = "series";
         if (!activeCats.has(cat)) return false;
-        if (m.releaseDate && m.releaseDate < today) return false;
-        if (activeYears.size > 0) {
-          if (!m.releaseDate) return false;
-          if (!activeYears.has(m.year)) return false;
-        }
+        if (!m.releaseDate) return activeYears.size === 0;
+        if (!activeYears.has(m.year)) return false;
         return true;
       })
       .sort((a, b) => {
