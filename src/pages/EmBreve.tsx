@@ -92,6 +92,7 @@ export default function EmBreve() {
   // Aplica filtros + ordena por (ano asc, data asc).
   // Itens sem releaseDate vão para o bucket -1 ("data a confirmar").
   const grouped = useMemo(() => {
+    const yearsToShow = activeYears.size > 0 ? activeYears : new Set<number>([defaultCatalogYear()]);
     const filtered = items
       .filter((m) => canWatch(m, activeProfile, account))
       .filter((m) => {
@@ -104,8 +105,8 @@ export default function EmBreve() {
         else if (isAnimation) cat = "animation";
         else cat = "series";
         if (!activeCats.has(cat)) return false;
-        if (!m.releaseDate) return activeYears.size === 0;
-        if (!activeYears.has(m.year)) return false;
+        if (!m.releaseDate) return false;
+        if (!yearsToShow.has(m.year)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -142,7 +143,7 @@ export default function EmBreve() {
 
   const clear = () => {
     setPendingCats(new Set(CATEGORIES.map((c) => c.key)));
-    setPendingYears(new Set());
+    setPendingYears(new Set([defaultCatalogYear()]));
   };
 
   const togglePendingCat = (k: CatKey) =>
