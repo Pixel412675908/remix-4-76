@@ -1,46 +1,52 @@
 // Restaura scroll ao voltar (POP) e salva ao sair (PUSH/REPLACE).
+// Funciona em todas as páginas de catálogo e detalhe.
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 
 const KEY_PREFIX = "scroll_";
+const MAX_RETRIES = 60; // ~1s a 16ms por frame
 
 export function useScrollRestoration() {
   const location = useLocation();
   const navType = useNavigationType(); // "POP" | "PUSH" | "REPLACE"
   const prevPath = useRef<string | null>(null);
 
+  // Desativa o restore nativo do navegador para termos controle total.
   useEffect(() => {
-    const path = location.pathname + location.search;
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
 
-    // 1) Antes de "sair" da rota anterior, salvar a posição atual quando navegação é PUSH.
-    // Usamos prevPath ref para saber qual rota está sendo deixada para trás.
-    const handler = () => {
+  // Salva a posição da rota anterior antes de mudar para a nova.
+  useEffect(() => {
+    return () => {
       if (prevPath.current) {
         sessionStorage.setItem(KEY_PREFIX + prevPath.current, String(window.scrollY));
       }
-    };
-    // Ao mudar rota: este efeito roda DEPOIS — salvamos antes via cleanup do efeito anterior.
-    return () => {
-      handler();
     };
   }, [location.pathname, location.search]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
     if (navType === "POP") {
-      // Voltando — restaurar
       const saved = sessionStorage.getItem(KEY_PREFIX + path);
       if (saved != null) {
-        const y = parseInt(saved, 10) || 0;
-        // Aguardar pintura do conteúdo
-        requestAnimationFrame(() => {
-          window.scrollTo(0, y);
-          requestAnimationFrame(() => window.scrollTo(0, y));
-        });
-        sessionStorage.removeItem(KEY_PREFIX + path);
+        const targetY = parseInt(saved, 10) || 0;
+        let attempts = 0;
+        const tryRestore = () => {
+          window.scrollTo(0, targetY);
+          // Se o conteúdo ainda não cresceu o suficiente, tenta de novo no próximo frame.
+          if (Math.abs(window.scrollY - targetY) > 4 && attempts < MAX_RETRIES) {
+            attempts += 1;
+            requestAnimationFrame(tryRestore);
+          } else {
+            sessionStorage.removeItem(KEY_PREFIX + path);
+          }
+        };
+        requestAnimationFrame(tryRestore);
       }
     } else {
-      // Nova navegação — começar do topo
       window.scrollTo(0, 0);
     }
     prevPath.current = path;
