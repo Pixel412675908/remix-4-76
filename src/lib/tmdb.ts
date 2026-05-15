@@ -160,7 +160,7 @@ async function mapList(
   const allowJa = opts?.allowJa ?? false;
   const allowReality = opts?.allowReality ?? false;
   const allowHentai = opts?.allowHentai ?? false;
-  const allowMissingOverview = opts?.allowMissingOverview ?? !requireReleased;
+  const allowMissingOverview = opts?.allowMissingOverview ?? true;
   const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
     .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
