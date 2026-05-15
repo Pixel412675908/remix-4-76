@@ -85,9 +85,12 @@ export function InfiniteCatalog({
     return () => { cancel = true; };
   }, [totalCount]);
 
+  const loadingRef = useRef(false);
+  const doneRef = useRef(false);
   const loadPage = useCallback(
     async (p: number) => {
-      if (loading || done || p > maxPages) return;
+      if (loadingRef.current || doneRef.current || p > maxPages) return;
+      loadingRef.current = true;
       setLoading(true);
       try {
         const results = await Promise.all(loaders.map((l) => l.loader(p).catch(() => [] as Media[])));
@@ -97,13 +100,17 @@ export function InfiniteCatalog({
           seen.current.add(m.id);
           return true;
         });
-        if (fresh.length === 0) setDone(true);
+        if (fresh.length === 0) {
+          doneRef.current = true;
+          setDone(true);
+        }
         setItems((prev) => [...prev, ...fresh]);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     },
-    [loaders, loading, done, maxPages]
+    [loaders, maxPages]
   );
 
   useEffect(() => {
