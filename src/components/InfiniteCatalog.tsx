@@ -118,6 +118,7 @@ export function InfiniteCatalog({
     setItems([]);
     setPage(1);
     setDone(false);
+    doneRef.current = false;
     loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaders.map((l) => l.label).join("|")]);
