@@ -63,14 +63,30 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult|hentai|ecchi)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual)\b/i;
+const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula)\b/i;
+// IDs TMDB de filmes/séries notórios por sexo explícito.
+const EXPLICIT_BLACKLIST_IDS = new Set<number>([
+  337170, 919207, 985939, // 365 Days trilogy
+  250546, 339846, 399361, // Fifty Shades trilogy
+  130392,                 // Sex/Life
+  138843,                 // Below Her Mouth
+  396422,                 // After
+  537056, 613504, 718789, // After sequels (mais adultas)
+  76600,                  // (placeholder seguro p/ ajustar)
+]);
 const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
 function classifyMaturity(item: TmdbItem) {
   const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
-  const explicit = !!item.adult || EXPLICIT_KEYWORDS.test(text);
+  const titleOnly = `${item.title ?? ""} ${item.name ?? ""}`;
+  const explicit =
+    !!item.adult ||
+    EXPLICIT_BLACKLIST_IDS.has(item.id) ||
+    EXPLICIT_TITLE_REGEX.test(titleOnly) ||
+    EXPLICIT_KEYWORDS.test(text);
   const matureByGenre = (item.genre_ids ?? []).some((g) => MATURE_GENRE_IDS.has(g));
   const mature = explicit || matureByGenre || MATURE_KEYWORDS.test(text);
   return { explicit, mature };
