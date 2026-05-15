@@ -1,7 +1,7 @@
 // MediaCard — minimalista, menor, com indicador de bloqueio para explorer
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Play, Plus, Check, Star, Lock } from "lucide-react";
 import { Media } from "@/types/media";
 import { useMyList } from "@/hooks/useMyList";
@@ -15,6 +15,7 @@ interface MediaCardProps {
 
 export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
   const [hover, setHover] = useState(false);
+  const location = useLocation();
   const { has, toggle } = useMyList();
   const { isExplorer } = useAuth();
   const inList = has(media.id);
@@ -31,7 +32,11 @@ export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
         "aspect-[2/3]"
       )}
     >
-      <Link to={detailLink} className="block w-full h-full">
+      <Link
+        to={detailLink}
+        className="block w-full h-full"
+        onClick={() => sessionStorage.setItem(`scroll_${location.pathname}${location.search}`, String(window.scrollY))}
+      >
         <div
           className={cn(
             "relative w-full h-full rounded-xl overflow-hidden",
