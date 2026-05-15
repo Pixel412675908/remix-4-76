@@ -63,7 +63,7 @@ export default function EmBreve() {
   const [pendingCats, setPendingCats] = useState<Set<CatKey>>(activeCats);
   const [pendingYears, setPendingYears] = useState<Set<number>>(activeYears);
   const [unavailable, setUnavailable] = useState<Media | null>(null);
-  const seen = useRef<Set<number>>(new Set());
+  const seen = useRef<Set<string>>(new Set());
 
   // Por padrão carrega o ano atual; anos futuros/passados só entram quando selecionados no filtro.
   useEffect(() => {
@@ -82,8 +82,9 @@ export default function EmBreve() {
       if (cancelled) return;
       const dedup: Media[] = [];
       for (const m of results) {
-        if (seen.current.has(m.id)) continue;
-        seen.current.add(m.id);
+        const key = `${m.type}:${m.id}`;
+        if (seen.current.has(key)) continue;
+        seen.current.add(key);
         dedup.push(m);
       }
       setItems(dedup);
@@ -225,7 +226,7 @@ export default function EmBreve() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
                 {list.map((m) => (
-                  <div key={m.id} className="relative">
+                  <div key={`${m.type}:${m.id}`} className="relative">
                     <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground shadow-md">
                       {m.releaseDate ? formatBrDate(m.releaseDate) : `Em ${m.year}`}
                     </div>
