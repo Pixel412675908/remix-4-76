@@ -275,18 +275,21 @@ export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   return mapList(data.results, "movie", { minVotes: 50 });
 }
 export async function fetchAnimation(page = 1): Promise<Media[]> {
-  // Desenhos: somente animação ocidental/infantil, excluindo línguas asiáticas de anime.
+  // Desenhos: somente animação ocidental/infantil (filmes e TV), excluindo línguas asiáticas de anime.
   const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc", "vote_average.desc"] as const;
-  const variantCount = sortModes.length * WESTERN_ANIMATION_LANG_VARIANTS.length;
+  const mediaKinds = ["tv", "movie"] as const;
+  const variantCount = sortModes.length * WESTERN_ANIMATION_LANG_VARIANTS.length * mediaKinds.length;
   const variant = (page - 1) % variantCount;
   const sort = sortModes[variant % sortModes.length];
   const lang = WESTERN_ANIMATION_LANG_VARIANTS[Math.floor(variant / sortModes.length) % WESTERN_ANIMATION_LANG_VARIANTS.length];
+  const kind = mediaKinds[Math.floor(variant / (sortModes.length * WESTERN_ANIMATION_LANG_VARIANTS.length)) % mediaKinds.length];
   const innerPage = Math.floor((page - 1) / variantCount) + 1;
-  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+  const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+  const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
     page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
-    sort_by: sort, "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
+    sort_by: sort, "vote_count.gte": 0, [dateKey]: TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isWesternAnimationItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  return mapList(data.results.filter(isWesternAnimationItem), kind, { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
