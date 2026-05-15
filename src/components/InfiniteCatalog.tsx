@@ -61,7 +61,7 @@ export function InfiniteCatalog({
   title,
   subtitle,
   loaders,
-  maxPages = 250,
+  maxPages = 900,
   badgeRender,
   totalCount,
   genreOptions,
