@@ -300,8 +300,8 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: catálogo amplo (>=2000). Mantém qualidade mínima e filtra hentai.
-  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc"] as const;
+  // Animes: catálogo amplo (>=2500). Mantém filtro hentai/blacklist.
+  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -309,8 +309,8 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     with_genres: 16,
     with_original_language: "ja",
     include_adult: false,
-    "vote_count.gte": 20,
-    "vote_average.gte": 5.5,
+    "vote_count.gte": 5,
+    "vote_average.gte": 4.5,
     without_genres: 10749,
     sort_by: sort,
   });
