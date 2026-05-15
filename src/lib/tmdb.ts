@@ -183,25 +183,25 @@ export async function fetchTrending(page = 1): Promise<Media[]> {
 }
 export async function fetchPopularMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    page, sort_by: "popularity.desc", "vote_count.gte": 20, "vote_average.gte": 4.5,
     "release_date.lte": TODAY, region: REGION,
   });
-  return mapList(data.results, "movie", { minVotes: 100 });
+  return mapList(data.results, "movie", { minVotes: 20, allowAnyLang: true });
 }
 export async function fetchTopRatedMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/movie/top_rated", { page });
-  return mapList(data.results, "movie", { minVotes: 200 });
+  return mapList(data.results, "movie", { minVotes: 50, allowAnyLang: true });
 }
 export async function fetchPopularTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    page, sort_by: "popularity.desc", "vote_count.gte": 20, "vote_average.gte": 4.5,
     "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 100 });
+  return mapList(data.results, "tv", { minVotes: 20, allowAnyLang: true });
 }
 export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/tv/top_rated", { page });
-  return mapList(data.results, "tv", { minVotes: 200 });
+  return mapList(data.results, "tv", { minVotes: 50, allowAnyLang: true });
 }
 export async function fetchNowPlaying(page = 1): Promise<Media[]> {
   // Lançamentos: combinamos /movie/now_playing + /tv/on_the_air e filtramos
