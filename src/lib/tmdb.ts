@@ -347,33 +347,40 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: catálogo amplo (>=2500). Mantém filtro hentai/blacklist.
+  // Animes: somente animações asiáticas (TV e filmes), com filtros relaxados para volume real.
   const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
-  const sort = sortModes[(page - 1) % sortModes.length];
-  const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
-  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+  const mediaKinds = ["tv", "movie"] as const;
+  const variantCount = sortModes.length * ANIME_LANG_VARIANTS.length * mediaKinds.length;
+  const variant = (page - 1) % variantCount;
+  const sort = sortModes[variant % sortModes.length];
+  const lang = ANIME_LANG_VARIANTS[Math.floor(variant / sortModes.length) % ANIME_LANG_VARIANTS.length];
+  const kind = mediaKinds[Math.floor(variant / (sortModes.length * ANIME_LANG_VARIANTS.length)) % mediaKinds.length];
+  const innerPage = Math.floor((page - 1) / variantCount) + 1;
+  const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+  const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
     page: innerPage,
-    with_genres: 16,
-    with_original_language: "ja",
+    with_genres: ANIMATION_GENRE_ID,
+    with_original_language: lang,
     include_adult: false,
-    "vote_count.gte": 5,
-    "vote_average.gte": 4.5,
-    without_genres: 10749,
+    "vote_count.gte": 0,
+    [dateKey]: TODAY,
     sort_by: sort,
   });
   let filtered = data.results.filter(
-    (r) => r.original_language === "ja" && !r.adult && !isBlacklistedAnime(r)
+    (r) => isAnimeItem(r) && !r.adult && !isBlacklistedAnime(r)
   );
   if (page === 1) {
     const whitelist = await fetchTvByIds(ANIME_WHITELIST_IDS);
     const existingIds = new Set(filtered.map((f) => f.id));
     filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
   }
-  return mapList(filtered, "tv", {
+  return mapList(filtered, kind, {
     minVotes: 0,
-    requireReleased: false,
+    requireReleased: true,
     allowJa: true,
     allowHentai: false,
+    allowAnyLang: true,
+    allowMissingOverview: true,
   });
 }
 // Reality removido: stub mantido vazio para retrocompatibilidade.
@@ -385,34 +392,30 @@ export async function fetchReality(_page = 1): Promise<Media[]> {
 // 400 internacionais (pt/es/en/ko, soap opera) + 400 turcas (drama tr).
 // Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
 export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
-  // Mais idiomas + alterna sort para ampliar catálogo.
-  const langs = ["pt", "es", "en", "ko", "it", "fr", "ja"];
+  // Somente soap opera/telenovela; vários idiomas e sorts para volume sem virar séries comuns.
+  const langs = NOVELA_LANG_VARIANTS;
   const sorts = ["popularity.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const variant = (page - 1) % (langs.length * sorts.length);
   const lang = langs[variant % langs.length];
   const sort = sorts[Math.floor(variant / langs.length) % sorts.length];
   const innerPage = Math.floor((page - 1) / (langs.length * sorts.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page: innerPage, with_genres: 10766, with_original_language: lang,
-    sort_by: sort, "vote_count.gte": 2,
-    "first_air_date.gte": "1980-01-01", "first_air_date.lte": TODAY,
+    page: innerPage, with_genres: SOAP_GENRE_ID, with_original_language: lang,
+    sort_by: sort, "vote_count.gte": 0,
+    "first_air_date.gte": "1970-01-01", "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 2, allowAnyLang: true });
+  return mapList(data.results.filter(isStrictNovelaItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
   const sorts = ["popularity.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const sort = sorts[(page - 1) % sorts.length];
   const innerPage = Math.floor((page - 1) / sorts.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page: innerPage, with_original_language: "tr", with_genres: 18,
-    sort_by: sort, "vote_count.gte": 2,
+    page: innerPage, with_original_language: "tr", with_genres: SOAP_GENRE_ID,
+    sort_by: sort, "vote_count.gte": 0,
     "first_air_date.lte": TODAY,
   });
-  const genres = await loadGenres();
-  return data.results
-    .filter((i) => qualityFilter(i, 2))
-    .filter((i) => isReleased(i))
-    .map((i) => mapItem(i, "tv", genres));
+  return mapList(data.results.filter(isStrictNovelaItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchNovelas(page = 1): Promise<Media[]> {
   if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
