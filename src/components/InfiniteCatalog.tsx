@@ -2,6 +2,7 @@
 // Inclui painel lateral de filtro por gênero (e, opcional, por idioma original).
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { Loader2, SlidersHorizontal, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { MediaCard } from "@/components/MediaCard";
@@ -65,6 +66,7 @@ export function InfiniteCatalog({
   totalCount,
   genreOptions,
 }: Props) {
+  const location = useLocation();
   const { account, activeProfile } = useAuth();
   const [items, setItems] = useState<Media[]>([]);
   const [page, setPage] = useState(1);
@@ -123,8 +125,11 @@ export function InfiniteCatalog({
     setDone(false);
     doneRef.current = false;
     (async () => {
-      for (let p = 1; p <= INITIAL_BATCH_SIZE; p += 1) await loadPage(p);
-      setPage(INITIAL_BATCH_SIZE);
+      const savedY = Number(sessionStorage.getItem(`scroll_${location.pathname}${location.search}`) ?? 0);
+      const restoreBatch = savedY > 0 ? Math.ceil(savedY / 1200) + INITIAL_BATCH_SIZE : INITIAL_BATCH_SIZE;
+      const pagesToLoad = Math.min(maxPages, Math.max(INITIAL_BATCH_SIZE, restoreBatch));
+      for (let p = 1; p <= pagesToLoad; p += 1) await loadPage(p);
+      setPage(pagesToLoad);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaders.map((l) => l.label).join("|")]);
