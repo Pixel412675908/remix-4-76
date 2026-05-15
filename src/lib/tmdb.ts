@@ -483,7 +483,7 @@ function combineLoaders(...loaders: Array<(p: number) => Promise<Media[]>>): (pa
   };
 }
 
-export const fetchAllMovies = combineLoaders(fetchPopularMovies, fetchTopRatedMovies, fetchNowPlaying);
+export const fetchAllMovies = combineLoaders(fetchPopularMovies, fetchTopRatedMovies);
 export const fetchAllTv = combineLoaders(fetchPopularTv, fetchTopRatedTv);
 
 export type RowLoader = (page: number) => Promise<Media[]>;
@@ -552,41 +552,42 @@ async function countDiscover(
 }
 export async function countMovies(): Promise<number> {
   return countDiscover("movie", {
-    sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
-    "release_date.lte": TODAY, region: REGION,
+    sort_by: "popularity.desc", without_genres: ANIMATION_GENRE_ID,
+    "vote_count.gte": 0, "primary_release_date.lte": TODAY, include_adult: false,
   });
 }
 export async function countSeries(): Promise<number> {
   return countDiscover("tv", {
-    sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
-    "first_air_date.lte": TODAY,
+    sort_by: "popularity.desc", without_genres: STRICT_SERIES_EXCLUDED_GENRES,
+    "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
   });
 }
 export async function countAnime(): Promise<number> {
-  return countDiscover("tv", {
-    with_genres: 16, with_original_language: "ja", include_adult: false,
-    "vote_count.gte": 100, "vote_average.gte": 7.0, without_genres: 10749,
-  });
+  const counts = await Promise.all(ANIME_LANG_VARIANTS.flatMap((lang) =>
+    (["tv", "movie"] as const).map((kind) => countDiscover(kind, {
+      with_genres: ANIMATION_GENRE_ID, with_original_language: lang, include_adult: false,
+      "vote_count.gte": 0, [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: TODAY,
+    }))
+  ));
+  return counts.reduce((a, b) => a + b, 0);
 }
 export async function countAnimation(): Promise<number> {
-  return countDiscover("tv", {
-    with_genres: 16, without_original_language: "ja",
-    "vote_count.gte": 100, "first_air_date.lte": TODAY,
-  });
-}
-export async function countNovelas(): Promise<number> {
-  const langs = ["pt", "es", "en", "ko"];
-  const intl = await Promise.all(langs.map((lang) =>
+  const counts = await Promise.all(WESTERN_ANIMATION_LANG_VARIANTS.map((lang) =>
     countDiscover("tv", {
-      with_genres: 10766, with_original_language: lang,
-      "vote_count.gte": 50, "first_air_date.gte": "2000-01-01", "first_air_date.lte": TODAY,
+      with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
+      "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
     })
   ));
-  const tr = await countDiscover("tv", {
-    with_original_language: "tr", with_genres: 18,
-    "vote_count.gte": 20, "first_air_date.lte": TODAY,
-  });
-  return intl.reduce((a, b) => a + b, 0) + tr;
+  return counts.reduce((a, b) => a + b, 0);
+}
+export async function countNovelas(): Promise<number> {
+  const intl = await Promise.all(NOVELA_LANG_VARIANTS.map((lang) =>
+    countDiscover("tv", {
+      with_genres: SOAP_GENRE_ID, with_original_language: lang,
+      "vote_count.gte": 0, "first_air_date.gte": "1970-01-01", "first_air_date.lte": TODAY,
+    })
+  ));
+  return intl.reduce((a, b) => a + b, 0);
 }
 
 export async function fetchMovieDetail(id: number): Promise<Movie | null> {
