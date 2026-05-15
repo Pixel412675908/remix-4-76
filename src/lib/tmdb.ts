@@ -63,14 +63,30 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex|nudit|porn|xxx|adult|hentai|ecchi)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual)\b/i;
+const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula)\b/i;
+// IDs TMDB de filmes/séries notórios por sexo explícito.
+const EXPLICIT_BLACKLIST_IDS = new Set<number>([
+  337170, 919207, 985939, // 365 Days trilogy
+  250546, 339846, 399361, // Fifty Shades trilogy
+  130392,                 // Sex/Life
+  138843,                 // Below Her Mouth
+  396422,                 // After
+  537056, 613504, 718789, // After sequels (mais adultas)
+  76600,                  // (placeholder seguro p/ ajustar)
+]);
 const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
 function classifyMaturity(item: TmdbItem) {
   const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
-  const explicit = !!item.adult || EXPLICIT_KEYWORDS.test(text);
+  const titleOnly = `${item.title ?? ""} ${item.name ?? ""}`;
+  const explicit =
+    !!item.adult ||
+    EXPLICIT_BLACKLIST_IDS.has(item.id) ||
+    EXPLICIT_TITLE_REGEX.test(titleOnly) ||
+    EXPLICIT_KEYWORDS.test(text);
   const matureByGenre = (item.genre_ids ?? []).some((g) => MATURE_GENRE_IDS.has(g));
   const mature = explicit || matureByGenre || MATURE_KEYWORDS.test(text);
   return { explicit, mature };
@@ -144,7 +160,7 @@ async function mapList(
   const allowJa = opts?.allowJa ?? false;
   const allowReality = opts?.allowReality ?? false;
   const allowHentai = opts?.allowHentai ?? false;
-  const allowMissingOverview = opts?.allowMissingOverview ?? !requireReleased;
+  const allowMissingOverview = opts?.allowMissingOverview ?? true;
   const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
     .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
@@ -167,25 +183,25 @@ export async function fetchTrending(page = 1): Promise<Media[]> {
 }
 export async function fetchPopularMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    page, sort_by: "popularity.desc", "vote_count.gte": 20, "vote_average.gte": 4.5,
     "release_date.lte": TODAY, region: REGION,
   });
-  return mapList(data.results, "movie", { minVotes: 100 });
+  return mapList(data.results, "movie", { minVotes: 20, allowAnyLang: true });
 }
 export async function fetchTopRatedMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/movie/top_rated", { page });
-  return mapList(data.results, "movie", { minVotes: 200 });
+  return mapList(data.results, "movie", { minVotes: 50, allowAnyLang: true });
 }
 export async function fetchPopularTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, sort_by: "popularity.desc", "vote_count.gte": 100, "vote_average.gte": 5,
+    page, sort_by: "popularity.desc", "vote_count.gte": 20, "vote_average.gte": 4.5,
     "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 100 });
+  return mapList(data.results, "tv", { minVotes: 20, allowAnyLang: true });
 }
 export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/tv/top_rated", { page });
-  return mapList(data.results, "tv", { minVotes: 200 });
+  return mapList(data.results, "tv", { minVotes: 50, allowAnyLang: true });
 }
 export async function fetchNowPlaying(page = 1): Promise<Media[]> {
   // Lançamentos: combinamos /movie/now_playing + /tv/on_the_air e filtramos
@@ -214,16 +230,16 @@ export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   return mapList(data.results, "movie", { minVotes: 50 });
 }
 export async function fetchAnimation(page = 1): Promise<Media[]> {
-  // Desenhos: animação TV NÃO-japonesa. Filtros relaxados para ampliar catálogo (>=1500).
-  const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc"] as const;
+  // Desenhos: animação TV NÃO-japonesa. Filtros bem relaxados (>=2000).
+  const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc", "vote_average.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_genres: 16, without_original_language: "ja",
-    sort_by: sort, "vote_count.gte": 20, "first_air_date.lte": TODAY,
+    sort_by: sort, "vote_count.gte": 5, "first_air_date.lte": TODAY,
   });
   const filtered = data.results.filter((r) => r.original_language !== "ja");
-  return mapList(filtered, "tv", { minVotes: 20 });
+  return mapList(filtered, "tv", { minVotes: 5, allowAnyLang: true });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
@@ -284,8 +300,8 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
-  // Animes: catálogo amplo (>=2000). Mantém qualidade mínima e filtra hentai.
-  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc"] as const;
+  // Animes: catálogo amplo (>=2500). Mantém filtro hentai/blacklist.
+  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -293,8 +309,8 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     with_genres: 16,
     with_original_language: "ja",
     include_adult: false,
-    "vote_count.gte": 20,
-    "vote_average.gte": 5.5,
+    "vote_count.gte": 5,
+    "vote_average.gte": 4.5,
     without_genres: 10749,
     sort_by: sort,
   });
@@ -323,31 +339,31 @@ export async function fetchReality(_page = 1): Promise<Media[]> {
 // Cada loader paginado retorna ~20 por página. Páginas 1-20 = 400 itens.
 export async function fetchNovelasInternational(page = 1): Promise<Media[]> {
   // Mais idiomas + alterna sort para ampliar catálogo.
-  const langs = ["pt", "es", "en", "ko", "it", "fr"];
-  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const langs = ["pt", "es", "en", "ko", "it", "fr", "ja"];
+  const sorts = ["popularity.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const variant = (page - 1) % (langs.length * sorts.length);
   const lang = langs[variant % langs.length];
   const sort = sorts[Math.floor(variant / langs.length) % sorts.length];
   const innerPage = Math.floor((page - 1) / (langs.length * sorts.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_genres: 10766, with_original_language: lang,
-    sort_by: sort, "vote_count.gte": 10,
-    "first_air_date.gte": "1990-01-01", "first_air_date.lte": TODAY,
+    sort_by: sort, "vote_count.gte": 2,
+    "first_air_date.gte": "1980-01-01", "first_air_date.lte": TODAY,
   });
-  return mapList(data.results, "tv", { minVotes: 10 });
+  return mapList(data.results, "tv", { minVotes: 2, allowAnyLang: true });
 }
 export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
-  const sorts = ["popularity.desc", "first_air_date.desc"] as const;
+  const sorts = ["popularity.desc", "first_air_date.desc", "vote_count.desc"] as const;
   const sort = sorts[(page - 1) % sorts.length];
   const innerPage = Math.floor((page - 1) / sorts.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_original_language: "tr", with_genres: 18,
-    sort_by: sort, "vote_count.gte": 5,
+    sort_by: sort, "vote_count.gte": 2,
     "first_air_date.lte": TODAY,
   });
   const genres = await loadGenres();
   return data.results
-    .filter((i) => qualityFilter(i, 5))
+    .filter((i) => qualityFilter(i, 2))
     .filter((i) => isReleased(i))
     .map((i) => mapItem(i, "tv", genres));
 }

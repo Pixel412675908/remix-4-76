@@ -85,9 +85,12 @@ export function InfiniteCatalog({
     return () => { cancel = true; };
   }, [totalCount]);
 
+  const loadingRef = useRef(false);
+  const doneRef = useRef(false);
   const loadPage = useCallback(
     async (p: number) => {
-      if (loading || done || p > maxPages) return;
+      if (loadingRef.current || doneRef.current || p > maxPages) return;
+      loadingRef.current = true;
       setLoading(true);
       try {
         const results = await Promise.all(loaders.map((l) => l.loader(p).catch(() => [] as Media[])));
@@ -97,13 +100,17 @@ export function InfiniteCatalog({
           seen.current.add(m.id);
           return true;
         });
-        if (fresh.length === 0) setDone(true);
+        if (fresh.length === 0) {
+          doneRef.current = true;
+          setDone(true);
+        }
         setItems((prev) => [...prev, ...fresh]);
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     },
-    [loaders, loading, done, maxPages]
+    [loaders, maxPages]
   );
 
   useEffect(() => {
@@ -111,6 +118,7 @@ export function InfiniteCatalog({
     setItems([]);
     setPage(1);
     setDone(false);
+    doneRef.current = false;
     loadPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaders.map((l) => l.label).join("|")]);
@@ -120,19 +128,23 @@ export function InfiniteCatalog({
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading && !done) {
+        if (entries[0].isIntersecting && !loadingRef.current && !doneRef.current) {
           setPage((p) => {
             const next = p + 1;
-            loadPage(next);
-            return next;
+            // Pré-carrega 2 páginas em sequência para reduzir lag.
+            (async () => {
+              await loadPage(next);
+              await loadPage(next + 1);
+            })();
+            return next + 1;
           });
         }
       },
-      { rootMargin: "1800px" }
+      { rootMargin: "3000px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [loadPage, loading, done]);
+  }, [loadPage]);
 
   const allowed = useMemo(
     () => items.filter((m) => canWatch(m, activeProfile, account)),
