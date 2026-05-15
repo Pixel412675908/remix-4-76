@@ -76,7 +76,9 @@ export function InfiniteCatalog({
   const [activeGenres, setActiveGenres] = useState<Set<string>>(new Set());
   const [pendingGenres, setPendingGenres] = useState<Set<string>>(new Set());
   const sentinel = useRef<HTMLDivElement | null>(null);
-  const seen = useRef<Set<number>>(new Set());
+  const seen = useRef<Set<string>>(new Set());
+  const INITIAL_BATCH_SIZE = 6;
+  const SCROLL_BATCH_SIZE = 6;
 
   useEffect(() => {
     if (!totalCount) return;
@@ -96,8 +98,9 @@ export function InfiniteCatalog({
         const results = await Promise.all(loaders.map((l) => l.loader(p).catch(() => [] as Media[])));
         const flat = results.flat();
         const fresh = flat.filter((m) => {
-          if (seen.current.has(m.id)) return false;
-          seen.current.add(m.id);
+          const key = `${m.type}:${m.id}`;
+          if (seen.current.has(key)) return false;
+          seen.current.add(key);
           return true;
         });
         if (fresh.length === 0) {
@@ -119,7 +122,10 @@ export function InfiniteCatalog({
     setPage(1);
     setDone(false);
     doneRef.current = false;
-    loadPage(1);
+    (async () => {
+      for (let p = 1; p <= INITIAL_BATCH_SIZE; p += 1) await loadPage(p);
+      setPage(INITIAL_BATCH_SIZE);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaders.map((l) => l.label).join("|")]);
 
@@ -131,16 +137,17 @@ export function InfiniteCatalog({
         if (entries[0].isIntersecting && !loadingRef.current && !doneRef.current) {
           setPage((p) => {
             const next = p + 1;
-            // Pré-carrega 2 páginas em sequência para reduzir lag.
+            // Pré-carrega várias páginas em sequência para reduzir lag perceptível.
             (async () => {
-              await loadPage(next);
-              await loadPage(next + 1);
+              for (let offset = 0; offset < SCROLL_BATCH_SIZE; offset += 1) {
+                await loadPage(next + offset);
+              }
             })();
-            return next + 1;
+            return p + SCROLL_BATCH_SIZE;
           });
         }
       },
-      { rootMargin: "3000px" }
+      { rootMargin: "7000px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -236,7 +243,7 @@ export function InfiniteCatalog({
         </div>
 
         <div ref={sentinel} className="h-16 grid place-items-center mt-6">
-          {loading && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+          {loading && items.length === 0 && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
           {done && items.length > 0 && (
             <p className="text-xs text-muted-foreground">Você chegou ao fim do catálogo.</p>
           )}
