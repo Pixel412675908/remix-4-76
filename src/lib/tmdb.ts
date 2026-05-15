@@ -140,6 +140,39 @@ function qualityFilter(item: TmdbItem, minVotes = 50, allowMissingOverview = fal
 // Idiomas com áudio aceito (prioridade: pt-BR > pt-PT > en).
 // "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
 const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
+const ANIMATION_GENRE_ID = 16;
+const SOAP_GENRE_ID = 10766;
+const STRICT_SERIES_EXCLUDED_GENRES = [ANIMATION_GENRE_ID, SOAP_GENRE_ID, 10762, 10763, 10764, 10767].join(",");
+const ASIAN_ANIME_LANGS = new Set(["ja", "ko", "zh", "cn"]);
+const ANIME_LANG_VARIANTS = ["ja", "ko", "zh"];
+const WESTERN_ANIMATION_LANG_VARIANTS = ["en", "pt", "es", "fr", "it", "de", "nl", "sv", "da", "no", "fi", "pl"];
+const NOVELA_LANG_VARIANTS = ["pt", "es", "tr", "en", "it", "fr", "de", "ar", "hi", "tl"];
+
+function hasGenre(item: TmdbItem, genreId: number): boolean {
+  return (item.genre_ids ?? []).includes(genreId);
+}
+
+function isAnimeItem(item: TmdbItem): boolean {
+  return hasGenre(item, ANIMATION_GENRE_ID) && ASIAN_ANIME_LANGS.has((item.original_language || "").toLowerCase());
+}
+
+function isWesternAnimationItem(item: TmdbItem): boolean {
+  const lang = (item.original_language || "").toLowerCase();
+  return hasGenre(item, ANIMATION_GENRE_ID) && !!lang && !ASIAN_ANIME_LANGS.has(lang);
+}
+
+function isStrictMovieItem(item: TmdbItem): boolean {
+  return !hasGenre(item, ANIMATION_GENRE_ID) && !isAnimeItem(item);
+}
+
+function isStrictSeriesItem(item: TmdbItem): boolean {
+  return !hasGenre(item, ANIMATION_GENRE_ID) && !hasGenre(item, SOAP_GENRE_ID) &&
+    ![10762, 10763, 10764, 10767].some((g) => hasGenre(item, g));
+}
+
+function isStrictNovelaItem(item: TmdbItem): boolean {
+  return hasGenre(item, SOAP_GENRE_ID);
+}
 
 function hasAcceptedAudio(item: TmdbItem, allowJa = false, allowAny = false): boolean {
   if (allowAny) return true;
