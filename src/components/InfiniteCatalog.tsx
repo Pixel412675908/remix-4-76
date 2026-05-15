@@ -128,12 +128,14 @@ export function InfiniteCatalog({
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !loading && !done) {
+        if (entries[0].isIntersecting && !loadingRef.current && !doneRef.current) {
           setPage((p) => {
             const next = p + 1;
-            // Pré-carrega 2 páginas para reduzir lag durante o scroll.
-            loadPage(next);
-            setTimeout(() => loadPage(next + 1), 0);
+            // Pré-carrega 2 páginas em sequência para reduzir lag.
+            (async () => {
+              await loadPage(next);
+              await loadPage(next + 1);
+            })();
             return next + 1;
           });
         }
@@ -142,7 +144,7 @@ export function InfiniteCatalog({
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [loadPage, loading, done]);
+  }, [loadPage]);
 
   const allowed = useMemo(
     () => items.filter((m) => canWatch(m, activeProfile, account)),
