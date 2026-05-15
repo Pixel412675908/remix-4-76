@@ -230,16 +230,16 @@ export async function fetchDocumentaries(page = 1): Promise<Media[]> {
   return mapList(data.results, "movie", { minVotes: 50 });
 }
 export async function fetchAnimation(page = 1): Promise<Media[]> {
-  // Desenhos: animação TV NÃO-japonesa. Filtros relaxados para ampliar catálogo (>=1500).
-  const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc"] as const;
+  // Desenhos: animação TV NÃO-japonesa. Filtros bem relaxados (>=2000).
+  const sortModes = ["popularity.desc", "vote_count.desc", "first_air_date.desc", "vote_average.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage, with_genres: 16, without_original_language: "ja",
-    sort_by: sort, "vote_count.gte": 20, "first_air_date.lte": TODAY,
+    sort_by: sort, "vote_count.gte": 5, "first_air_date.lte": TODAY,
   });
   const filtered = data.results.filter((r) => r.original_language !== "ja");
-  return mapList(filtered, "tv", { minVotes: 20 });
+  return mapList(filtered, "tv", { minVotes: 5, allowAnyLang: true });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
