@@ -4,26 +4,36 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 
 const KEY_PREFIX = "scroll_";
-const MAX_RETRIES = 60; // ~1s a 16ms por frame
+const MAX_WAIT_MS = 8000; // até 8s esperando o conteúdo crescer
 
 export function useScrollRestoration() {
   const location = useLocation();
-  const navType = useNavigationType(); // "POP" | "PUSH" | "REPLACE"
+  const navType = useNavigationType();
   const prevPath = useRef<string | null>(null);
 
-  // Desativa o restore nativo do navegador para termos controle total.
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
     }
   }, []);
 
-  // Salva a posição da rota anterior antes de mudar para a nova.
+  // Salva continuamente a posição da rota atual (não só no unmount),
+  // assim o valor mais recente está sempre disponível para POP.
   useEffect(() => {
+    const path = location.pathname + location.search;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        sessionStorage.setItem(KEY_PREFIX + path, String(window.scrollY));
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      if (prevPath.current) {
-        sessionStorage.setItem(KEY_PREFIX + prevPath.current, String(window.scrollY));
-      }
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      // garante o último valor salvo no momento da troca de rota
+      sessionStorage.setItem(KEY_PREFIX + path, String(window.scrollY));
     };
   }, [location.pathname, location.search]);
 
@@ -33,12 +43,16 @@ export function useScrollRestoration() {
       const saved = sessionStorage.getItem(KEY_PREFIX + path);
       if (saved != null) {
         const targetY = parseInt(saved, 10) || 0;
-        let attempts = 0;
+        const start = performance.now();
         const tryRestore = () => {
-          window.scrollTo(0, targetY);
-          // Se o conteúdo ainda não cresceu o suficiente, tenta de novo no próximo frame.
-          if (Math.abs(window.scrollY - targetY) > 4 && attempts < MAX_RETRIES) {
-            attempts += 1;
+          const maxScrollable = document.documentElement.scrollHeight - window.innerHeight;
+          // Espera o conteúdo crescer o suficiente para alcançar o targetY.
+          if (maxScrollable + 4 < targetY && performance.now() - start < MAX_WAIT_MS) {
+            requestAnimationFrame(tryRestore);
+            return;
+          }
+          window.scrollTo(0, Math.min(targetY, maxScrollable));
+          if (Math.abs(window.scrollY - targetY) > 4 && performance.now() - start < MAX_WAIT_MS) {
             requestAnimationFrame(tryRestore);
           } else {
             sessionStorage.removeItem(KEY_PREFIX + path);
