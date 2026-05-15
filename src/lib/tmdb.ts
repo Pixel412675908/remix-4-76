@@ -575,11 +575,12 @@ export async function countAnime(): Promise<number> {
   return counts.reduce((a, b) => a + b, 0);
 }
 export async function countAnimation(): Promise<number> {
-  const counts = await Promise.all(WESTERN_ANIMATION_LANG_VARIANTS.map((lang) =>
-    countDiscover("tv", {
+  const counts = await Promise.all(WESTERN_ANIMATION_LANG_VARIANTS.flatMap((lang) =>
+    (["tv", "movie"] as const).map((kind) => countDiscover(kind, {
       with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
-      "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
-    })
+      "vote_count.gte": 0, [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: TODAY,
+      include_adult: false,
+    }))
   ));
   return counts.reduce((a, b) => a + b, 0);
 }
