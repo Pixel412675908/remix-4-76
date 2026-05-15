@@ -935,52 +935,67 @@ export async function fetchUpcomingMoviesByYear(year: number, page = 1): Promise
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
     page, sort_by: "primary_release_date.asc",
     "primary_release_date.gte": gte, "primary_release_date.lte": lte,
+    without_genres: ANIMATION_GENRE_ID, include_adult: false,
   });
-  return mapList(data.results, "movie", { minVotes: 0, requireReleased: false });
+  return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, requireReleased: false });
 }
 export async function fetchUpcomingTvByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page, sort_by: "first_air_date.asc",
     "first_air_date.gte": gte, "first_air_date.lte": lte,
+    without_genres: STRICT_SERIES_EXCLUDED_GENRES, include_adult: false,
   });
-  return mapList(data.results, "tv", { minVotes: 0, requireReleased: false });
+  return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, requireReleased: false });
 }
 export async function fetchUpcomingAnimeByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
-  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 16, with_original_language: "ja",
-    sort_by: "first_air_date.asc",
-    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  const mediaKinds = ["tv", "movie"] as const;
+  const variant = (page - 1) % (ANIME_LANG_VARIANTS.length * mediaKinds.length);
+  const lang = ANIME_LANG_VARIANTS[variant % ANIME_LANG_VARIANTS.length];
+  const kind = mediaKinds[Math.floor(variant / ANIME_LANG_VARIANTS.length) % mediaKinds.length];
+  const innerPage = Math.floor((page - 1) / (ANIME_LANG_VARIANTS.length * mediaKinds.length)) + 1;
+  const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+    page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
+    sort_by: kind === "movie" ? "primary_release_date.asc" : "first_air_date.asc",
+    [kind === "movie" ? "primary_release_date.gte" : "first_air_date.gte"]: gte,
+    [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: lte,
+    include_adult: false,
   });
-  const filtered = data.results.filter((r) => r.original_language === "ja" && !isBlacklistedAnime(r));
-  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false, allowJa: true });
+  const filtered = data.results.filter((r) => isAnimeItem(r) && !isBlacklistedAnime(r));
+  return mapList(filtered, kind, { minVotes: 0, requireReleased: false, allowJa: true, allowAnyLang: true });
 }
 export async function fetchUpcomingAnimationByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
-  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, with_genres: 16, without_original_language: "ja",
-    sort_by: "first_air_date.asc",
-    "first_air_date.gte": gte, "first_air_date.lte": lte,
+  const mediaKinds = ["tv", "movie"] as const;
+  const variant = (page - 1) % (WESTERN_ANIMATION_LANG_VARIANTS.length * mediaKinds.length);
+  const lang = WESTERN_ANIMATION_LANG_VARIANTS[variant % WESTERN_ANIMATION_LANG_VARIANTS.length];
+  const kind = mediaKinds[Math.floor(variant / WESTERN_ANIMATION_LANG_VARIANTS.length) % mediaKinds.length];
+  const innerPage = Math.floor((page - 1) / (WESTERN_ANIMATION_LANG_VARIANTS.length * mediaKinds.length)) + 1;
+  const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+    page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
+    sort_by: kind === "movie" ? "primary_release_date.asc" : "first_air_date.asc",
+    [kind === "movie" ? "primary_release_date.gte" : "first_air_date.gte"]: gte,
+    [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: lte,
+    include_adult: false,
   });
-  const filtered = data.results.filter((r) => r.original_language !== "ja");
-  return mapList(filtered, "tv", { minVotes: 0, requireReleased: false });
+  return mapList(data.results.filter(isWesternAnimationItem), kind, { minVotes: 0, requireReleased: false, allowAnyLang: true });
 }
 
 export async function fetchUpcomingNovelasByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
-  const langs = ["pt", "es", "tr", "ko"];
+  const langs = NOVELA_LANG_VARIANTS;
   const lang = langs[(page - 1) % langs.length];
   const innerPage = Math.floor((page - 1) / langs.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
     page: innerPage,
     with_original_language: lang,
-    with_genres: lang === "tr" ? 18 : 10766,
+    with_genres: SOAP_GENRE_ID,
     sort_by: "first_air_date.asc",
     "first_air_date.gte": gte, "first_air_date.lte": lte,
   });
   const genres = await loadGenres();
   return data.results
-    .filter((i) => i.poster_path || i.backdrop_path)
+    .filter((i) => (i.poster_path || i.backdrop_path) && isStrictNovelaItem(i))
     .map((i) => mapItem(i, "tv", genres));
 }
