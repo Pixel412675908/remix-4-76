@@ -280,9 +280,10 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   const mediaKinds = ["tv", "movie"] as const;
   const variantCount = sortModes.length * WESTERN_ANIMATION_LANG_VARIANTS.length * mediaKinds.length;
   const variant = (page - 1) % variantCount;
-  const sort = sortModes[variant % sortModes.length];
+  const baseSort = sortModes[variant % sortModes.length];
   const lang = WESTERN_ANIMATION_LANG_VARIANTS[Math.floor(variant / sortModes.length) % WESTERN_ANIMATION_LANG_VARIANTS.length];
   const kind = mediaKinds[Math.floor(variant / (sortModes.length * WESTERN_ANIMATION_LANG_VARIANTS.length)) % mediaKinds.length];
+  const sort = kind === "movie" && baseSort === "first_air_date.desc" ? "primary_release_date.desc" : baseSort;
   const innerPage = Math.floor((page - 1) / variantCount) + 1;
   const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
@@ -355,9 +356,10 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
   const mediaKinds = ["tv", "movie"] as const;
   const variantCount = sortModes.length * ANIME_LANG_VARIANTS.length * mediaKinds.length;
   const variant = (page - 1) % variantCount;
-  const sort = sortModes[variant % sortModes.length];
+  const baseSort = sortModes[variant % sortModes.length];
   const lang = ANIME_LANG_VARIANTS[Math.floor(variant / sortModes.length) % ANIME_LANG_VARIANTS.length];
   const kind = mediaKinds[Math.floor(variant / (sortModes.length * ANIME_LANG_VARIANTS.length)) % mediaKinds.length];
+  const sort = kind === "movie" && baseSort === "first_air_date.desc" ? "primary_release_date.desc" : baseSort;
   const innerPage = Math.floor((page - 1) / variantCount) + 1;
   const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
