@@ -119,20 +119,22 @@ export default function EmBreve() {
       });
 
     // Prioridade: ocidentais populares primeiro, asiáticos/animes por último.
-    // Tier por idioma: 0=ocidental popular, 1=ocidental, 2=asiático/anime.
     const langTier = (m: Media) => {
       const lang = (m.originalLanguage || "").toLowerCase();
-      const asian = ["ja", "ko", "zh", "th"];
+      const asian = ["ja", "ko", "zh", "th", "hi"];
       if (asian.includes(lang)) return 2;
-      // Filme/série ocidental — prioriza inglês/português/espanhol como mais populares.
       const western = ["en", "pt", "es", "fr", "it", "de"];
       if (western.includes(lang)) return 0;
       return 1;
     };
+    // Boost para grandes franquias ocidentais (Marvel, DC, Pixar, Disney, etc.).
+    const FRANCHISE_BOOST = /\b(avengers|vingadores|spider-?man|homem[- ]?aranha|doctor\s*strange|doutor\s*estranho|thor|iron\s*man|captain\s*america|capit[ãa]o\s*am[eé]rica|x[- ]?men|deadpool|wolverine|hulk|black\s*panther|pantera\s*negra|guardians|guardi[õo]es|fantastic\s*four|quarteto\s*fant[áa]stico|marvel|dc|batman|superman|wonder\s*woman|mulher[- ]?maravilha|aquaman|flash|justice\s*league|liga\s*da\s*justi[çc]a|joker|coringa|harry\s*potter|fantastic\s*beasts|animais\s*fant[áa]sticos|star\s*wars|mandalorian|toy\s*story|frozen|moana|encanto|inside\s*out|divertida\s*mente|coco|elementos|elemental|zootopia|coco|incredibles|incr[íi]veis|cars|carros|finding|procurando|monsters|monstros|shrek|kung\s*fu\s*panda|how\s*to\s*train|dragon|madagascar|despicable|meu\s*malvado|minions|trolls|sing|stranger\s*things|wednesday|wandinha|squid\s*game|round\s*6|la\s*casa\s*de\s*papel|money\s*heist|peaky\s*blinders|bridgerton|witcher|crown|ozark|narcos|vikings|the\s*last\s*of\s*us|house\s*of\s*the\s*dragon|rings\s*of\s*power|game\s*of\s*thrones|missi[oó]n|mission\s*impossible|fast\s*(and|&)?\s*furious|velozes|john\s*wick|jurassic|dune|matrix|transformers|godzilla|king\s*kong|alien|predator|terminator|exterminador|rocky|creed|james\s*bond|007|indiana\s*jones|gladiator|gladi[áa]dor)\b/i;
     const ranked = [...filtered].sort((a, b) => {
       const la = langTier(a), lb = langTier(b);
       if (la !== lb) return la - lb;
-      // Dentro do mesmo tier de idioma, ordena por popularidade (rating) e data.
+      const fa = FRANCHISE_BOOST.test(a.title) ? 0 : 1;
+      const fb = FRANCHISE_BOOST.test(b.title) ? 0 : 1;
+      if (fa !== fb) return fa - fb;
       if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
       return (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "");
     });
