@@ -123,12 +123,14 @@ export function InfiniteCatalog({
         if (entries[0].isIntersecting && !loading && !done) {
           setPage((p) => {
             const next = p + 1;
+            // Pré-carrega 2 páginas para reduzir lag durante o scroll.
             loadPage(next);
-            return next;
+            setTimeout(() => loadPage(next + 1), 0);
+            return next + 1;
           });
         }
       },
-      { rootMargin: "1800px" }
+      { rootMargin: "3000px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
