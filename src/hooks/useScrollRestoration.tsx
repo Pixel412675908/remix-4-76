@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useLocation, useNavigationType } from "react-router-dom";
 
 const KEY_PREFIX = "scroll_";
-const MAX_WAIT_MS = 8000; // até 8s esperando o conteúdo crescer
+const MAX_WAIT_MS = 15000; // espera listas infinitas grandes crescerem
 
 export function useScrollRestoration() {
   const location = useLocation();
@@ -47,12 +47,12 @@ export function useScrollRestoration() {
         const tryRestore = () => {
           const maxScrollable = document.documentElement.scrollHeight - window.innerHeight;
           // Espera o conteúdo crescer o suficiente para alcançar o targetY.
-          if (maxScrollable + 4 < targetY && performance.now() - start < MAX_WAIT_MS) {
+          if (maxScrollable + window.innerHeight < targetY && performance.now() - start < MAX_WAIT_MS) {
             requestAnimationFrame(tryRestore);
             return;
           }
           window.scrollTo(0, Math.min(targetY, maxScrollable));
-          if (Math.abs(window.scrollY - targetY) > 4 && performance.now() - start < MAX_WAIT_MS) {
+          if (Math.abs(window.scrollY - Math.min(targetY, maxScrollable)) > 4 && performance.now() - start < MAX_WAIT_MS) {
             requestAnimationFrame(tryRestore);
           } else {
             sessionStorage.removeItem(KEY_PREFIX + path);

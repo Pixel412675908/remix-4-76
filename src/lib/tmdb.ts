@@ -16,7 +16,60 @@ function img(path: string | null | undefined, big = false): string {
   return `${big ? IMG_ORIG : IMG_500}${path}`;
 }
 
+const tmdbMemoryCache = new Map<string, { expiresAt: number; payload: unknown }>();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+function cacheKeyFor(path: string, params: Record<string, string | number | boolean | undefined>): string {
+  const pairs = Object.entries(params)
+    .filter(([, v]) => v != null)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${String(v)}`)
+    .join("|");
+  return `tmdb:${path}:${LANG}:${pairs}`;
+}
+
+function ttlFor(path: string): number {
+  if (path.includes("/trending/")) return WEEK_MS;
+  return DAY_MS;
+}
+
+async function readCachedTmdb<T>(key: string): Promise<T | null> {
+  const mem = tmdbMemoryCache.get(key);
+  if (mem && mem.expiresAt > Date.now()) return mem.payload as T;
+  try {
+    const { data } = await (supabase as any)
+      .from("tmdb_cache")
+      .select("payload, expires_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (!data || new Date(data.expires_at).getTime() <= Date.now()) return null;
+    tmdbMemoryCache.set(key, { payload: data.payload, expiresAt: new Date(data.expires_at).getTime() });
+    return data.payload as T;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedTmdb(key: string, payload: unknown, ttlMs: number): Promise<void> {
+  const expiresAt = Date.now() + ttlMs;
+  tmdbMemoryCache.set(key, { payload, expiresAt });
+  try {
+    await (supabase as any).from("tmdb_cache").upsert({
+      cache_key: key,
+      payload,
+      expires_at: new Date(expiresAt).toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  } catch {
+    // Cache é otimização: se o backend não estiver disponível, segue direto pela API.
+  }
+}
+
 async function tget<T = any>(path: string, params: Record<string, string | number | boolean | undefined> = {}): Promise<T> {
+  const key = cacheKeyFor(path, params);
+  const cached = await readCachedTmdb<T>(key);
+  if (cached) return cached;
   const url = new URL(`${TMDB_BASE}${path}`);
   url.searchParams.set("api_key", TMDB_API_KEY);
   url.searchParams.set("language", LANG);
@@ -25,7 +78,9 @@ async function tget<T = any>(path: string, params: Record<string, string | numbe
   }
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`TMDB ${path} -> ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  void writeCachedTmdb(key, json, ttlFor(path));
+  return json;
 }
 
 interface TmdbItem {
@@ -63,8 +118,8 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual)\b/i;
-const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual|yaoi|yuri|uncensored|adult\s*animation)\b/i;
+const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula|overflow|mignon|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas|modaete\s*yo\s*adam|adam[- ]?kun|shuudengo|aika|bible\s*black|night\s*shift\s*nurses|discipline|yarichin|futab部|isekai\s*harem|harem\s*in\s*the\s*labyrinth|redo\s*of\s*healer|interspecies\s*reviewers|ishuzoku\s*reviewers|yosuga\s*no\s*sora|kiss\s*x\s*sis)\b/i;
 // IDs TMDB de filmes/séries notórios por sexo explícito.
 const EXPLICIT_BLACKLIST_IDS = new Set<number>([
   337170, 919207, 985939, // 365 Days trilogy
@@ -75,7 +130,7 @@ const EXPLICIT_BLACKLIST_IDS = new Set<number>([
   537056, 613504, 718789, // After sequels (mais adultas)
   76600,                  // (placeholder seguro p/ ajustar)
 ]);
-const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
+const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx|overflow|mignon|adam[- ]?kun|modaete|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
@@ -138,35 +193,72 @@ function qualityFilter(item: TmdbItem, minVotes = 50, allowMissingOverview = fal
 }
 
 // Idiomas com áudio aceito (prioridade: pt-BR > pt-PT > en).
-// "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
+// Catálogos principais evitam línguas asiáticas para não misturar anime/donghua.
 const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
 const ANIMATION_GENRE_ID = 16;
 const SOAP_GENRE_ID = 10766;
+const KIDS_GENRE_ID = 10762;
+const FAMILY_GENRE_ID = 10751;
 const STRICT_SERIES_EXCLUDED_GENRES = [ANIMATION_GENRE_ID, SOAP_GENRE_ID, 10762, 10763, 10764, 10767].join(",");
 const ASIAN_ANIME_LANGS = new Set(["ja", "ko", "zh", "cn"]);
-const ANIME_LANG_VARIANTS = ["ja", "ko", "zh"];
+const WESTERN_LIVE_LANGS = new Set(["en", "pt", "es", "fr", "it", "de", "nl", "sv", "da", "no", "fi", "pl"]);
+const ANIME_LANG_VARIANTS = ["ja", "ko"];
+const DONGHUA_LANG_VARIANTS = ["zh"];
 const WESTERN_ANIMATION_LANG_VARIANTS = ["en", "pt", "es", "fr", "it", "de", "nl", "sv", "da", "no", "fi", "pl"];
 const NOVELA_LANG_VARIANTS = ["pt", "es", "tr", "en", "it", "fr", "de", "ar", "hi", "tl"];
+const CHINESE_DONGHUA_QUERY_LIST = [
+  "Battle Through the Heavens",
+  "Soul Land",
+  "Perfect World",
+  "Alchemy Supreme",
+  "Swallowed Star",
+  "A Record of a Mortal's Journey to Immortality",
+  "Stellar Transformations",
+  "Throne of Seal",
+  "Martial Universe",
+  "Renegade Immortal",
+  "The Great Ruler",
+  "The Demon Hunter",
+];
+const WESTERN_CARTOON_CHILD_EXCLUDE = /\b(rick\s*and\s*morty|futurama|invincible|arcane|south\s*park|family\s*guy|american\s*dad|bojack|simpsons?|big\s*mouth|solar\s*opposites|harley\s*quinn|castlevania|blood\s*of\s*zeus)\b/i;
+const ASIAN_KID_CARTOON_EXCLUDE = /\b(robocar\s*poli|monkart|pororo|tayo|larva|super\s*wings|miniforce|babybus|cocomong|tobot|hello\s*carbot|duda\s*&?\s*dada|pinkfong)\b/i;
+const DONGHUA_CULTIVATION_HINTS = /\b(cultivation|cultivator|xianxia|xuanhuan|martial|soul\s*land|douluo|alchemy|heaven|heavens|immortal|demon|sect|spirit|spiritual|realm|perfect\s*world|swallowed\s*star|stellar|throne\s*of\s*seal|battle\s*through|martial\s*universe|renegade\s*immortal|great\s*ruler|fantasia|artes\s*marciais|cultivo|alquimia|imortal|seita|reino\s*espiritual)\b/i;
+const TOP_MOVIE_IDS = new Set([24428, 299536, 299534, 634649, 557, 558, 559, 293660, 533535, 19995, 603, 11, 155, 27205, 157336]);
+const TOP_SERIES_IDS = new Set([76479, 94997, 75006, 66732, 82856, 85552, 84958, 1408, 1399, 1396, 63174, 1399, 1425, 60625]);
+const TOP_ANIME_IDS = new Set([37854, 95479, 127532, 1429, 85937, 65930, 46260, 114410, 30984, 31911, 61222, 95557]);
+const TOP_ANIMATION_IDS = new Set([862, 863, 10193, 2150, 809, 808, 585, 12, 129, 508442, 109445, 354912]);
 
 function hasGenre(item: TmdbItem, genreId: number): boolean {
   return (item.genre_ids ?? []).includes(genreId);
 }
 
 function isAnimeItem(item: TmdbItem): boolean {
-  return hasGenre(item, ANIMATION_GENRE_ID) && ASIAN_ANIME_LANGS.has((item.original_language || "").toLowerCase());
+  const lang = (item.original_language || "").toLowerCase();
+  const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
+  if (!hasGenre(item, ANIMATION_GENRE_ID) || !ASIAN_ANIME_LANGS.has(lang)) return false;
+  if (ASIAN_KID_CARTOON_EXCLUDE.test(text)) return false;
+  if (lang === "ja") return true;
+  if (lang === "zh" || lang === "cn") return DONGHUA_CULTIVATION_HINTS.test(text) || !hasGenre(item, KIDS_GENRE_ID);
+  if (lang === "ko") return !hasGenre(item, KIDS_GENRE_ID) && !hasGenre(item, FAMILY_GENRE_ID);
+  return false;
 }
 
 function isWesternAnimationItem(item: TmdbItem): boolean {
   const lang = (item.original_language || "").toLowerCase();
-  return hasGenre(item, ANIMATION_GENRE_ID) && !!lang && !ASIAN_ANIME_LANGS.has(lang);
+  const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
+  return hasGenre(item, ANIMATION_GENRE_ID) && !!lang && !ASIAN_ANIME_LANGS.has(lang) &&
+    (hasGenre(item, KIDS_GENRE_ID) || hasGenre(item, FAMILY_GENRE_ID)) &&
+    !WESTERN_CARTOON_CHILD_EXCLUDE.test(text);
 }
 
 function isStrictMovieItem(item: TmdbItem): boolean {
-  return !hasGenre(item, ANIMATION_GENRE_ID) && !isAnimeItem(item);
+  const lang = (item.original_language || "").toLowerCase();
+  return !hasGenre(item, ANIMATION_GENRE_ID) && !isAnimeItem(item) && WESTERN_LIVE_LANGS.has(lang);
 }
 
 function isStrictSeriesItem(item: TmdbItem): boolean {
-  return !hasGenre(item, ANIMATION_GENRE_ID) && !hasGenre(item, SOAP_GENRE_ID) &&
+  const lang = (item.original_language || "").toLowerCase();
+  return WESTERN_LIVE_LANGS.has(lang) && !hasGenre(item, ANIMATION_GENRE_ID) && !hasGenre(item, SOAP_GENRE_ID) &&
     ![10762, 10763, 10764, 10767].some((g) => hasGenre(item, g));
 }
 
@@ -180,6 +272,17 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false, allowAny = false): bo
   if (ALLOWED_AUDIO_LANGS.has(lang)) return true;
   if (allowJa && lang === "ja") return true;
   return false;
+}
+
+function applyCatalogPriority(media: Media): Media {
+  let priority = 0;
+  if (media.type === "movie" && TOP_MOVIE_IDS.has(media.id)) priority += 10000;
+  if (media.type === "tv" && TOP_SERIES_IDS.has(media.id)) priority += 10000;
+  if (TOP_ANIME_IDS.has(media.id)) priority += 12000;
+  if (TOP_ANIMATION_IDS.has(media.id)) priority += 9000;
+  if (media.originalLanguage === "zh" || media.originalLanguage === "cn") priority -= 250;
+  (media as any).catalogPriority = priority;
+  return media;
 }
 
 async function mapList(
@@ -205,7 +308,7 @@ async function mapList(
       const text = `${i.title ?? ""} ${i.name ?? ""} ${i.overview ?? ""}`;
       return !HENTAI_KEYWORDS.test(text);
     })
-    .map((i) => mapItem(i, fallbackType, genres));
+    .map((i) => applyCatalogPriority(mapItem(i, fallbackType, genres)));
 }
 
 // ============ ENDPOINTS PAGINADOS ============
@@ -215,14 +318,16 @@ export async function fetchTrending(page = 1): Promise<Media[]> {
   return mapList(data.results, undefined, { minVotes: 100 });
 }
 export async function fetchPopularMovies(page = 1): Promise<Media[]> {
-  const sortModes = ["popularity.desc", "vote_count.desc", "primary_release_date.desc", "revenue.desc", "vote_average.desc"] as const;
+  const sortModes = ["popularity.desc", "revenue.desc", "vote_count.desc", "primary_release_date.desc", "vote_average.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page: innerPage, sort_by: sort, without_genres: ANIMATION_GENRE_ID,
+    page: innerPage, sort_by: sort, without_genres: [ANIMATION_GENRE_ID, 99].join(","), with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "primary_release_date.lte": TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isStrictMovieItem);
+  if (page === 1) filtered = uniqueTmdbItems([...(await fetchMovieByIds([...TOP_MOVIE_IDS]).catch(() => [])), ...filtered]).filter(isStrictMovieItem);
+  return mapList(filtered, "movie", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchTopRatedMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
@@ -236,10 +341,12 @@ export async function fetchPopularTv(page = 1): Promise<Media[]> {
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page: innerPage, sort_by: sort, without_genres: STRICT_SERIES_EXCLUDED_GENRES,
+    page: innerPage, sort_by: sort, without_genres: STRICT_SERIES_EXCLUDED_GENRES, with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isStrictSeriesItem);
+  if (page === 1) filtered = uniqueTmdbItems([...(await fetchTvByIds([...TOP_SERIES_IDS]).catch(() => [])), ...filtered]).filter(isStrictSeriesItem);
+  return mapList(filtered, "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
@@ -287,16 +394,23 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   const innerPage = Math.floor((page - 1) / variantCount) + 1;
   const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
-    page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
+    page: innerPage, with_genres: [ANIMATION_GENRE_ID, FAMILY_GENRE_ID].join(","), with_original_language: lang,
     sort_by: sort, "vote_count.gte": 0, [dateKey]: TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isWesternAnimationItem), kind, { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isWesternAnimationItem);
+  if (page === 1) {
+    const [movies, tv] = await Promise.all([
+      fetchMovieByIds([...TOP_ANIMATION_IDS]).catch(() => []),
+      fetchTvByIds([...TOP_ANIMATION_IDS]).catch(() => []),
+    ]);
+    filtered = uniqueTmdbItems([...movies, ...tv, ...filtered]).filter(isWesternAnimationItem);
+  }
+  return mapList(filtered, kind, { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
 export const ANIME_BLACKLIST_IDS = new Set<number>([
   90474,  // Overflow
-  37854,  // Yosuga no Sora
   37578,  // Kiss x Sis
   75299,  // Domestic Girlfriend
   93571,  // Interspecies Reviewers
@@ -323,6 +437,11 @@ export const ANIME_TITLE_BLACKLIST = /\b(takamine[- ]?san|please\s*put\s*them\s*
 
 // Animes garantidos no catálogo (whitelist por TMDB ID).
 export const ANIME_WHITELIST_IDS = [
+  37854, // One Piece
+  95479, // Jujutsu Kaisen
+  127532, // Solo Leveling
+  1429, // Attack on Titan
+  85937, // Demon Slayer
   45782, // Shokugeki no Soma / Food Wars
 ];
 
@@ -350,9 +469,38 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
   return out.filter((x): x is TmdbItem => !!x);
 }
 
+async function fetchMovieByIds(ids: number[]): Promise<TmdbItem[]> {
+  const out = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const d = await tget<any>(`/movie/${id}`);
+        return {
+          id: d.id, title: d.title, overview: d.overview,
+          poster_path: d.poster_path, backdrop_path: d.backdrop_path,
+          release_date: d.release_date, vote_average: d.vote_average,
+          vote_count: d.vote_count, original_language: d.original_language,
+          genre_ids: (d.genres ?? []).map((g: any) => g.id), media_type: "movie",
+        } as TmdbItem;
+      } catch { return null; }
+    })
+  );
+  return out.filter((x): x is TmdbItem => !!x);
+}
+
+function uniqueTmdbItems(items: TmdbItem[]): TmdbItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.media_type ?? (item.title ? "movie" : "tv")}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
+  if (page > 180) return fetchDonghuaCultivation(page - 180);
   // Animes: somente animações asiáticas (TV e filmes), com filtros relaxados para volume real.
-  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
+  const sortModes = ["popularity.desc", "vote_count.desc", "vote_average.desc", "first_air_date.desc"] as const;
   const mediaKinds = ["tv", "movie"] as const;
   const variantCount = sortModes.length * ANIME_LANG_VARIANTS.length * mediaKinds.length;
   const variant = (page - 1) % variantCount;
@@ -387,6 +535,36 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     allowAnyLang: true,
     allowMissingOverview: true,
   });
+}
+
+export async function fetchDonghuaCultivation(page = 1): Promise<Media[]> {
+  const sorts = ["popularity.desc", "vote_count.desc", "first_air_date.desc", "vote_average.desc"] as const;
+  const mediaKinds = ["tv", "movie"] as const;
+  const variant = (page - 1) % (sorts.length * mediaKinds.length);
+  const kind = mediaKinds[Math.floor(variant / sorts.length) % mediaKinds.length];
+  const sort = kind === "movie" && sorts[variant % sorts.length] === "first_air_date.desc" ? "primary_release_date.desc" : sorts[variant % sorts.length];
+  const innerPage = Math.floor((page - 1) / (sorts.length * mediaKinds.length)) + 1;
+  const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+  const discover = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+    page: innerPage,
+    with_genres: ANIMATION_GENRE_ID,
+    with_original_language: "zh",
+    include_adult: false,
+    "vote_count.gte": 0,
+    [dateKey]: TODAY,
+    sort_by: sort,
+  }).catch(() => ({ results: [] }));
+  const searched = page === 1
+    ? (await Promise.all(CHINESE_DONGHUA_QUERY_LIST.map((query) =>
+        tget<{ results: TmdbItem[] }>("/search/multi", { query, include_adult: false }).then((d) => d.results).catch(() => [])
+      ))).flat()
+    : [];
+  const filtered = uniqueTmdbItems([...searched, ...discover.results])
+    .filter((r) => (r.media_type === "tv" || r.media_type === "movie" || !r.media_type))
+    .filter((r) => hasGenre(r, ANIMATION_GENRE_ID) && ["zh", "cn"].includes((r.original_language || "").toLowerCase()))
+    .filter((r) => DONGHUA_CULTIVATION_HINTS.test(`${r.title ?? ""} ${r.name ?? ""} ${r.overview ?? ""}`))
+    .filter((r) => !isBlacklistedAnime(r));
+  return mapList(filtered, kind, { minVotes: 0, requireReleased: true, allowJa: true, allowAnyLang: true, allowMissingOverview: true });
 }
 // Reality removido: stub mantido vazio para retrocompatibilidade.
 export async function fetchReality(_page = 1): Promise<Media[]> {
