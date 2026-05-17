@@ -398,7 +398,6 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
 export const ANIME_BLACKLIST_IDS = new Set<number>([
   90474,  // Overflow
-  37854,  // Yosuga no Sora
   37578,  // Kiss x Sis
   75299,  // Domestic Girlfriend
   93571,  // Interspecies Reviewers
