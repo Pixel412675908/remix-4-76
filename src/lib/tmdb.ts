@@ -318,11 +318,11 @@ export async function fetchTrending(page = 1): Promise<Media[]> {
   return mapList(data.results, undefined, { minVotes: 100 });
 }
 export async function fetchPopularMovies(page = 1): Promise<Media[]> {
-  const sortModes = ["popularity.desc", "vote_count.desc", "primary_release_date.desc", "revenue.desc", "vote_average.desc"] as const;
+  const sortModes = ["popularity.desc", "revenue.desc", "vote_count.desc", "primary_release_date.desc", "vote_average.desc"] as const;
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page: innerPage, sort_by: sort, without_genres: ANIMATION_GENRE_ID,
+    page: innerPage, sort_by: sort, without_genres: [ANIMATION_GENRE_ID, 99].join(","), with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "primary_release_date.lte": TODAY, include_adult: false,
   });
   return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
@@ -339,7 +339,7 @@ export async function fetchPopularTv(page = 1): Promise<Media[]> {
   const sort = sortModes[(page - 1) % sortModes.length];
   const innerPage = Math.floor((page - 1) / sortModes.length) + 1;
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page: innerPage, sort_by: sort, without_genres: STRICT_SERIES_EXCLUDED_GENRES,
+    page: innerPage, sort_by: sort, without_genres: STRICT_SERIES_EXCLUDED_GENRES, with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
   });
   return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
