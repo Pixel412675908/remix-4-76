@@ -71,6 +71,7 @@ const App = () => (
               <GlobalEffects />
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/index" element={<Navigate to="/" replace />} />
                 <Route path="/login" element={<RedirectAuthed><Login /></RedirectAuthed>} />
                 <Route path="/signup" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
                 <Route path="/cadastro" element={<RedirectAuthed><Signup /></RedirectAuthed>} />
