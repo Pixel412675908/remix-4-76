@@ -452,6 +452,34 @@ async function fetchTvByIds(ids: number[]): Promise<TmdbItem[]> {
   return out.filter((x): x is TmdbItem => !!x);
 }
 
+async function fetchMovieByIds(ids: number[]): Promise<TmdbItem[]> {
+  const out = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const d = await tget<any>(`/movie/${id}`);
+        return {
+          id: d.id, title: d.title, overview: d.overview,
+          poster_path: d.poster_path, backdrop_path: d.backdrop_path,
+          release_date: d.release_date, vote_average: d.vote_average,
+          vote_count: d.vote_count, original_language: d.original_language,
+          genre_ids: (d.genres ?? []).map((g: any) => g.id), media_type: "movie",
+        } as TmdbItem;
+      } catch { return null; }
+    })
+  );
+  return out.filter((x): x is TmdbItem => !!x);
+}
+
+function uniqueTmdbItems(items: TmdbItem[]): TmdbItem[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.media_type ?? (item.title ? "movie" : "tv")}:${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function fetchAnime(page = 1): Promise<Media[]> {
   // Animes: somente animações asiáticas (TV e filmes), com filtros relaxados para volume real.
   const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
