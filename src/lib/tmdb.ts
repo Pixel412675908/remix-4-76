@@ -16,7 +16,60 @@ function img(path: string | null | undefined, big = false): string {
   return `${big ? IMG_ORIG : IMG_500}${path}`;
 }
 
+const tmdbMemoryCache = new Map<string, { expiresAt: number; payload: unknown }>();
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
+
+function cacheKeyFor(path: string, params: Record<string, string | number | boolean | undefined>): string {
+  const pairs = Object.entries(params)
+    .filter(([, v]) => v != null)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${String(v)}`)
+    .join("|");
+  return `tmdb:${path}:${LANG}:${pairs}`;
+}
+
+function ttlFor(path: string): number {
+  if (path.includes("/trending/")) return WEEK_MS;
+  return DAY_MS;
+}
+
+async function readCachedTmdb<T>(key: string): Promise<T | null> {
+  const mem = tmdbMemoryCache.get(key);
+  if (mem && mem.expiresAt > Date.now()) return mem.payload as T;
+  try {
+    const { data } = await (supabase as any)
+      .from("tmdb_cache")
+      .select("payload, expires_at")
+      .eq("cache_key", key)
+      .maybeSingle();
+    if (!data || new Date(data.expires_at).getTime() <= Date.now()) return null;
+    tmdbMemoryCache.set(key, { payload: data.payload, expiresAt: new Date(data.expires_at).getTime() });
+    return data.payload as T;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedTmdb(key: string, payload: unknown, ttlMs: number): Promise<void> {
+  const expiresAt = Date.now() + ttlMs;
+  tmdbMemoryCache.set(key, { payload, expiresAt });
+  try {
+    await (supabase as any).from("tmdb_cache").upsert({
+      cache_key: key,
+      payload,
+      expires_at: new Date(expiresAt).toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+  } catch {
+    // Cache é otimização: se o backend não estiver disponível, segue direto pela API.
+  }
+}
+
 async function tget<T = any>(path: string, params: Record<string, string | number | boolean | undefined> = {}): Promise<T> {
+  const key = cacheKeyFor(path, params);
+  const cached = await readCachedTmdb<T>(key);
+  if (cached) return cached;
   const url = new URL(`${TMDB_BASE}${path}`);
   url.searchParams.set("api_key", TMDB_API_KEY);
   url.searchParams.set("language", LANG);
@@ -25,7 +78,9 @@ async function tget<T = any>(path: string, params: Record<string, string | numbe
   }
   const res = await fetch(url.toString());
   if (!res.ok) throw new Error(`TMDB ${path} -> ${res.status}`);
-  return res.json();
+  const json = await res.json();
+  void writeCachedTmdb(key, json, ttlFor(path));
+  return json;
 }
 
 interface TmdbItem {
@@ -63,8 +118,8 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual)\b/i;
-const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula)\b/i;
+const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual|yaoi|yuri|uncensored|adult\s*animation)\b/i;
+const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula|overflow|mignon|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas|modaete\s*yo\s*adam|adam[- ]?kun|shuudengo|aika|bible\s*black|night\s*shift\s*nurses|discipline|yarichin|futab部|isekai\s*harem|harem\s*in\s*the\s*labyrinth|redo\s*of\s*healer|interspecies\s*reviewers|ishuzoku\s*reviewers|yosuga\s*no\s*sora|kiss\s*x\s*sis)\b/i;
 // IDs TMDB de filmes/séries notórios por sexo explícito.
 const EXPLICIT_BLACKLIST_IDS = new Set<number>([
   337170, 919207, 985939, // 365 Days trilogy
@@ -75,7 +130,7 @@ const EXPLICIT_BLACKLIST_IDS = new Set<number>([
   537056, 613504, 718789, // After sequels (mais adultas)
   76600,                  // (placeholder seguro p/ ajustar)
 ]);
-const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
+const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx|overflow|mignon|adam[- ]?kun|modaete|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas)\b/i;
 const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
