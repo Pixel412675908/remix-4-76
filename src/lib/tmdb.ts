@@ -222,6 +222,10 @@ const CHINESE_DONGHUA_QUERY_LIST = [
 const WESTERN_CARTOON_CHILD_EXCLUDE = /\b(rick\s*and\s*morty|futurama|invincible|arcane|south\s*park|family\s*guy|american\s*dad|bojack|simpsons?|big\s*mouth|solar\s*opposites|harley\s*quinn|castlevania|blood\s*of\s*zeus)\b/i;
 const ASIAN_KID_CARTOON_EXCLUDE = /\b(robocar\s*poli|monkart|pororo|tayo|larva|super\s*wings|miniforce|babybus|cocomong|tobot|hello\s*carbot|duda\s*&?\s*dada|pinkfong)\b/i;
 const DONGHUA_CULTIVATION_HINTS = /\b(cultivation|cultivator|xianxia|xuanhuan|martial|soul\s*land|douluo|alchemy|heaven|heavens|immortal|demon|sect|spirit|spiritual|realm|perfect\s*world|swallowed\s*star|stellar|throne\s*of\s*seal|battle\s*through|martial\s*universe|renegade\s*immortal|great\s*ruler|fantasia|artes\s*marciais|cultivo|alquimia|imortal|seita|reino\s*espiritual)\b/i;
+const TOP_MOVIE_IDS = new Set([24428, 299536, 299534, 634649, 557, 558, 559, 293660, 533535, 19995, 603, 11, 155, 27205, 157336]);
+const TOP_SERIES_IDS = new Set([76479, 94997, 75006, 66732, 82856, 85552, 84958, 1408, 1399, 1396, 63174, 1399, 1425, 60625]);
+const TOP_ANIME_IDS = new Set([37854, 95479, 127532, 1429, 85937, 65930, 46260, 114410, 30984, 31911, 61222, 95557]);
+const TOP_ANIMATION_IDS = new Set([862, 863, 10193, 2150, 809, 808, 585, 12, 129, 508442, 109445, 354912]);
 
 function hasGenre(item: TmdbItem, genreId: number): boolean {
   return (item.genre_ids ?? []).includes(genreId);
@@ -269,6 +273,17 @@ function hasAcceptedAudio(item: TmdbItem, allowJa = false, allowAny = false): bo
   return false;
 }
 
+function applyCatalogPriority(media: Media): Media {
+  let priority = 0;
+  if (media.type === "movie" && TOP_MOVIE_IDS.has(media.id)) priority += 10000;
+  if (media.type === "tv" && TOP_SERIES_IDS.has(media.id)) priority += 10000;
+  if (TOP_ANIME_IDS.has(media.id)) priority += 12000;
+  if (TOP_ANIMATION_IDS.has(media.id)) priority += 9000;
+  if (media.originalLanguage === "zh" || media.originalLanguage === "cn") priority -= 250;
+  (media as any).catalogPriority = priority;
+  return media;
+}
+
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
@@ -292,7 +307,7 @@ async function mapList(
       const text = `${i.title ?? ""} ${i.name ?? ""} ${i.overview ?? ""}`;
       return !HENTAI_KEYWORDS.test(text);
     })
-    .map((i) => mapItem(i, fallbackType, genres));
+    .map((i) => applyCatalogPriority(mapItem(i, fallbackType, genres)));
 }
 
 // ============ ENDPOINTS PAGINADOS ============
