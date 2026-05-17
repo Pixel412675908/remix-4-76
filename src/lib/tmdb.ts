@@ -390,10 +390,18 @@ export async function fetchAnimation(page = 1): Promise<Media[]> {
   const innerPage = Math.floor((page - 1) / variantCount) + 1;
   const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
-    page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
+    page: innerPage, with_genres: [ANIMATION_GENRE_ID, FAMILY_GENRE_ID].join(","), with_original_language: lang,
     sort_by: sort, "vote_count.gte": 0, [dateKey]: TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isWesternAnimationItem), kind, { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isWesternAnimationItem);
+  if (page === 1) {
+    const [movies, tv] = await Promise.all([
+      fetchMovieByIds([...TOP_ANIMATION_IDS]).catch(() => []),
+      fetchTvByIds([...TOP_ANIMATION_IDS]).catch(() => []),
+    ]);
+    filtered = uniqueTmdbItems([...movies, ...tv, ...filtered]).filter(isWesternAnimationItem);
+  }
+  return mapList(filtered, kind, { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 // Lista negra de TMDB IDs de animes com conteúdo sexual explícito.
 // Mesmo que o TMDB retorne, são removidos antes de exibir.
@@ -425,6 +433,11 @@ export const ANIME_TITLE_BLACKLIST = /\b(takamine[- ]?san|please\s*put\s*them\s*
 
 // Animes garantidos no catálogo (whitelist por TMDB ID).
 export const ANIME_WHITELIST_IDS = [
+  37854, // One Piece
+  95479, // Jujutsu Kaisen
+  127532, // Solo Leveling
+  1429, // Attack on Titan
+  85937, // Demon Slayer
   45782, // Shokugeki no Soma / Food Wars
 ];
 
@@ -481,8 +494,9 @@ function uniqueTmdbItems(items: TmdbItem[]): TmdbItem[] {
 }
 
 export async function fetchAnime(page = 1): Promise<Media[]> {
+  if (page > 180) return fetchDonghuaCultivation(page - 180);
   // Animes: somente animações asiáticas (TV e filmes), com filtros relaxados para volume real.
-  const sortModes = ["popularity.desc", "vote_average.desc", "first_air_date.desc", "vote_count.desc"] as const;
+  const sortModes = ["popularity.desc", "vote_count.desc", "vote_average.desc", "first_air_date.desc"] as const;
   const mediaKinds = ["tv", "movie"] as const;
   const variantCount = sortModes.length * ANIME_LANG_VARIANTS.length * mediaKinds.length;
   const variant = (page - 1) % variantCount;
@@ -517,6 +531,36 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     allowAnyLang: true,
     allowMissingOverview: true,
   });
+}
+
+export async function fetchDonghuaCultivation(page = 1): Promise<Media[]> {
+  const sorts = ["popularity.desc", "vote_count.desc", "first_air_date.desc", "vote_average.desc"] as const;
+  const mediaKinds = ["tv", "movie"] as const;
+  const variant = (page - 1) % (sorts.length * mediaKinds.length);
+  const kind = mediaKinds[Math.floor(variant / sorts.length) % mediaKinds.length];
+  const sort = kind === "movie" && sorts[variant % sorts.length] === "first_air_date.desc" ? "primary_release_date.desc" : sorts[variant % sorts.length];
+  const innerPage = Math.floor((page - 1) / (sorts.length * mediaKinds.length)) + 1;
+  const dateKey = kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte";
+  const discover = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
+    page: innerPage,
+    with_genres: ANIMATION_GENRE_ID,
+    with_original_language: "zh",
+    include_adult: false,
+    "vote_count.gte": 0,
+    [dateKey]: TODAY,
+    sort_by: sort,
+  }).catch(() => ({ results: [] }));
+  const searched = page === 1
+    ? (await Promise.all(CHINESE_DONGHUA_QUERY_LIST.map((query) =>
+        tget<{ results: TmdbItem[] }>("/search/multi", { query, include_adult: false }).then((d) => d.results).catch(() => [])
+      ))).flat()
+    : [];
+  const filtered = uniqueTmdbItems([...searched, ...discover.results])
+    .filter((r) => (r.media_type === "tv" || r.media_type === "movie" || !r.media_type))
+    .filter((r) => hasGenre(r, ANIMATION_GENRE_ID) && ["zh", "cn"].includes((r.original_language || "").toLowerCase()))
+    .filter((r) => DONGHUA_CULTIVATION_HINTS.test(`${r.title ?? ""} ${r.name ?? ""} ${r.overview ?? ""}`))
+    .filter((r) => !isBlacklistedAnime(r));
+  return mapList(filtered, kind, { minVotes: 0, requireReleased: true, allowJa: true, allowAnyLang: true, allowMissingOverview: true });
 }
 // Reality removido: stub mantido vazio para retrocompatibilidade.
 export async function fetchReality(_page = 1): Promise<Media[]> {
