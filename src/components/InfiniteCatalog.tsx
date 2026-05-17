@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { Loader2, SlidersHorizontal, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { MediaCard } from "@/components/MediaCard";
@@ -78,9 +79,10 @@ export function InfiniteCatalog({
   const [activeGenres, setActiveGenres] = useState<Set<string>>(new Set());
   const [pendingGenres, setPendingGenres] = useState<Set<string>>(new Set());
   const sentinel = useRef<HTMLDivElement | null>(null);
+  const gridRef = useRef<HTMLDivElement | null>(null);
   const seen = useRef<Set<string>>(new Set());
-  const INITIAL_BATCH_SIZE = 6;
-  const SCROLL_BATCH_SIZE = 6;
+  const INITIAL_BATCH_SIZE = 8;
+  const SCROLL_BATCH_SIZE = 8;
 
   useEffect(() => {
     if (!totalCount) return;
@@ -126,7 +128,7 @@ export function InfiniteCatalog({
     doneRef.current = false;
     (async () => {
       const savedY = Number(sessionStorage.getItem(`scroll_${location.pathname}${location.search}`) ?? 0);
-      const restoreBatch = savedY > 0 ? Math.ceil(savedY / 1200) + INITIAL_BATCH_SIZE : INITIAL_BATCH_SIZE;
+      const restoreBatch = savedY > 0 ? Math.ceil(savedY / 850) + INITIAL_BATCH_SIZE : INITIAL_BATCH_SIZE;
       const pagesToLoad = Math.min(maxPages, Math.max(INITIAL_BATCH_SIZE, restoreBatch));
       for (let p = 1; p <= pagesToLoad; p += 1) await loadPage(p);
       setPage(pagesToLoad);
@@ -152,7 +154,7 @@ export function InfiniteCatalog({
           });
         }
       },
-      { rootMargin: "7000px" }
+      { rootMargin: "12000px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -174,10 +176,27 @@ export function InfiniteCatalog({
   const visible = useMemo(() => {
     const accountSorted = sortMediaForAccount(genreFiltered, account);
     return [...accountSorted].sort((a, b) => {
+      const pa = (a as any).catalogPriority ?? 0;
+      const pb = (b as any).catalogPriority ?? 0;
+      if (pb !== pa) return pb - pa;
       if (b.rating !== a.rating) return b.rating - a.rating;
       return (b.year ?? 0) - (a.year ?? 0);
     });
   }, [genreFiltered, account]);
+
+  const columns = typeof window === "undefined"
+    ? 6
+    : window.innerWidth >= 1280 ? 6 : window.innerWidth >= 1024 ? 5 : window.innerWidth >= 768 ? 4 : window.innerWidth >= 640 ? 3 : 2;
+  const rowGap = typeof window !== "undefined" && window.innerWidth >= 768 ? 16 : 12;
+  const cardWidth = columns === 6 ? 180 : columns === 5 ? 160 : columns === 4 ? 160 : columns === 3 ? 140 : 120;
+  const rowHeight = Math.round(cardWidth * 1.5 + rowGap);
+  const rowCount = Math.ceil(visible.length / columns);
+  const virtualRows = useWindowVirtualizer({
+    count: rowCount,
+    estimateSize: () => rowHeight,
+    overscan: 8,
+    scrollMargin: gridRef.current?.offsetTop ?? 0,
+  });
 
   // Auto-load mais páginas quando há filtro ativo e poucos resultados visíveis.
   useEffect(() => {
