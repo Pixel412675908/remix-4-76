@@ -325,7 +325,9 @@ export async function fetchPopularMovies(page = 1): Promise<Media[]> {
     page: innerPage, sort_by: sort, without_genres: [ANIMATION_GENRE_ID, 99].join(","), with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "primary_release_date.lte": TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isStrictMovieItem);
+  if (page === 1) filtered = uniqueTmdbItems([...(await fetchMovieByIds([...TOP_MOVIE_IDS]).catch(() => [])), ...filtered]).filter(isStrictMovieItem);
+  return mapList(filtered, "movie", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchTopRatedMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
@@ -342,7 +344,9 @@ export async function fetchPopularTv(page = 1): Promise<Media[]> {
     page: innerPage, sort_by: sort, without_genres: STRICT_SERIES_EXCLUDED_GENRES, with_original_language: page <= 120 ? "en" : undefined,
     "vote_count.gte": 0, "first_air_date.lte": TODAY, include_adult: false,
   });
-  return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
+  let filtered = data.results.filter(isStrictSeriesItem);
+  if (page === 1) filtered = uniqueTmdbItems([...(await fetchTvByIds([...TOP_SERIES_IDS]).catch(() => [])), ...filtered]).filter(isStrictSeriesItem);
+  return mapList(filtered, "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
 export async function fetchTopRatedTv(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
