@@ -257,13 +257,24 @@ export function InfiniteCatalog({
           )}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4">
-          {visible.map((m) => (
-            <div key={`${m.type}:${m.id}`} className="relative">
-              {badgeRender?.(m)}
-              <MediaCard media={m} onPlay={(x) => setPlaying(x)} />
-            </div>
-          ))}
+        <div ref={gridRef} className="relative" style={{ height: virtualRows.getTotalSize() }}>
+          {virtualRows.getVirtualItems().map((virtualRow) => {
+            const rowItems = visible.slice(virtualRow.index * columns, virtualRow.index * columns + columns);
+            return (
+              <div
+                key={virtualRow.key}
+                className="absolute left-0 top-0 w-full grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4"
+                style={{ transform: `translateY(${virtualRow.start - virtualRows.options.scrollMargin}px)` }}
+              >
+                {rowItems.map((m) => (
+                  <div key={`${m.type}:${m.id}`} className="relative">
+                    {badgeRender?.(m)}
+                    <MediaCard media={m} onPlay={(x) => setPlaying(x)} />
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
 
         <div ref={sentinel} className="h-16 grid place-items-center mt-6">
