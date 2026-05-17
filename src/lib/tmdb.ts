@@ -193,35 +193,67 @@ function qualityFilter(item: TmdbItem, minVotes = 50, allowMissingOverview = fal
 }
 
 // Idiomas com áudio aceito (prioridade: pt-BR > pt-PT > en).
-// "ja" é mantido apenas em listas de anime (que filtram explicitamente para ja).
+// Catálogos principais evitam línguas asiáticas para não misturar anime/donghua.
 const ALLOWED_AUDIO_LANGS = new Set(["pt", "en"]);
 const ANIMATION_GENRE_ID = 16;
 const SOAP_GENRE_ID = 10766;
+const KIDS_GENRE_ID = 10762;
+const FAMILY_GENRE_ID = 10751;
 const STRICT_SERIES_EXCLUDED_GENRES = [ANIMATION_GENRE_ID, SOAP_GENRE_ID, 10762, 10763, 10764, 10767].join(",");
 const ASIAN_ANIME_LANGS = new Set(["ja", "ko", "zh", "cn"]);
-const ANIME_LANG_VARIANTS = ["ja", "ko", "zh"];
+const WESTERN_LIVE_LANGS = new Set(["en", "pt", "es", "fr", "it", "de", "nl", "sv", "da", "no", "fi", "pl"]);
+const ANIME_LANG_VARIANTS = ["ja", "zh", "ko"];
 const WESTERN_ANIMATION_LANG_VARIANTS = ["en", "pt", "es", "fr", "it", "de", "nl", "sv", "da", "no", "fi", "pl"];
 const NOVELA_LANG_VARIANTS = ["pt", "es", "tr", "en", "it", "fr", "de", "ar", "hi", "tl"];
+const CHINESE_DONGHUA_QUERY_LIST = [
+  "Battle Through the Heavens",
+  "Soul Land",
+  "Perfect World",
+  "Alchemy Supreme",
+  "Swallowed Star",
+  "A Record of a Mortal's Journey to Immortality",
+  "Stellar Transformations",
+  "Throne of Seal",
+  "Martial Universe",
+  "Renegade Immortal",
+  "The Great Ruler",
+  "The Demon Hunter",
+];
+const WESTERN_CARTOON_CHILD_EXCLUDE = /\b(rick\s*and\s*morty|futurama|invincible|arcane|south\s*park|family\s*guy|american\s*dad|bojack|simpsons?|big\s*mouth|solar\s*opposites|harley\s*quinn|castlevania|blood\s*of\s*zeus)\b/i;
+const ASIAN_KID_CARTOON_EXCLUDE = /\b(robocar\s*poli|monkart|pororo|tayo|larva|super\s*wings|miniforce|babybus|cocomong|tobot|hello\s*carbot|duda\s*&?\s*dada|pinkfong)\b/i;
+const DONGHUA_CULTIVATION_HINTS = /\b(cultivation|cultivator|xianxia|xuanhuan|martial|soul\s*land|douluo|alchemy|heaven|heavens|immortal|demon|sect|spirit|spiritual|realm|perfect\s*world|swallowed\s*star|stellar|throne\s*of\s*seal|battle\s*through|martial\s*universe|renegade\s*immortal|great\s*ruler|fantasia|artes\s*marciais|cultivo|alquimia|imortal|seita|reino\s*espiritual)\b/i;
 
 function hasGenre(item: TmdbItem, genreId: number): boolean {
   return (item.genre_ids ?? []).includes(genreId);
 }
 
 function isAnimeItem(item: TmdbItem): boolean {
-  return hasGenre(item, ANIMATION_GENRE_ID) && ASIAN_ANIME_LANGS.has((item.original_language || "").toLowerCase());
+  const lang = (item.original_language || "").toLowerCase();
+  const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
+  if (!hasGenre(item, ANIMATION_GENRE_ID) || !ASIAN_ANIME_LANGS.has(lang)) return false;
+  if (ASIAN_KID_CARTOON_EXCLUDE.test(text)) return false;
+  if (lang === "ja") return true;
+  if (lang === "zh" || lang === "cn") return DONGHUA_CULTIVATION_HINTS.test(text) || !hasGenre(item, KIDS_GENRE_ID);
+  if (lang === "ko") return !hasGenre(item, KIDS_GENRE_ID) && !hasGenre(item, FAMILY_GENRE_ID);
+  return false;
 }
 
 function isWesternAnimationItem(item: TmdbItem): boolean {
   const lang = (item.original_language || "").toLowerCase();
-  return hasGenre(item, ANIMATION_GENRE_ID) && !!lang && !ASIAN_ANIME_LANGS.has(lang);
+  const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
+  return hasGenre(item, ANIMATION_GENRE_ID) && !!lang && !ASIAN_ANIME_LANGS.has(lang) &&
+    (hasGenre(item, KIDS_GENRE_ID) || hasGenre(item, FAMILY_GENRE_ID)) &&
+    !WESTERN_CARTOON_CHILD_EXCLUDE.test(text);
 }
 
 function isStrictMovieItem(item: TmdbItem): boolean {
-  return !hasGenre(item, ANIMATION_GENRE_ID) && !isAnimeItem(item);
+  const lang = (item.original_language || "").toLowerCase();
+  return !hasGenre(item, ANIMATION_GENRE_ID) && !isAnimeItem(item) && WESTERN_LIVE_LANGS.has(lang);
 }
 
 function isStrictSeriesItem(item: TmdbItem): boolean {
-  return !hasGenre(item, ANIMATION_GENRE_ID) && !hasGenre(item, SOAP_GENRE_ID) &&
+  const lang = (item.original_language || "").toLowerCase();
+  return WESTERN_LIVE_LANGS.has(lang) && !hasGenre(item, ANIMATION_GENRE_ID) && !hasGenre(item, SOAP_GENRE_ID) &&
     ![10762, 10763, 10764, 10767].some((g) => hasGenre(item, g));
 }
 
