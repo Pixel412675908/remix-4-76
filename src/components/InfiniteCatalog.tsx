@@ -180,18 +180,10 @@ export function InfiniteCatalog({
     return allowed.filter((m) => opts.some((o) => matchesOption(m, o)));
   }, [allowed, genreOptions, activeGenres]);
 
-  // Ordena por qualidade: rating DESC, ano DESC como desempate.
-  // Os melhores títulos da categoria sempre aparecem primeiro.
-  const visible = useMemo(() => {
-    const accountSorted = sortMediaForAccount(genreFiltered, account);
-    return [...accountSorted].sort((a, b) => {
-      const pa = (a as any).catalogPriority ?? 0;
-      const pb = (b as any).catalogPriority ?? 0;
-      if (pb !== pa) return pb - pa;
-      if (b.rating !== a.rating) return b.rating - a.rating;
-      return (b.year ?? 0) - (a.year ?? 0);
-    });
-  }, [genreFiltered, account]);
+  // NÃO reordena `visible` quando novos itens chegam. A ordenação é feita por lote
+  // dentro de `loadPage`, garantindo que itens já renderizados nunca mudem de posição
+  // (sem isso o infinite scroll empurrava o usuário para cima).
+  const visible = genreFiltered;
 
   const columns = typeof window === "undefined"
     ? 6
