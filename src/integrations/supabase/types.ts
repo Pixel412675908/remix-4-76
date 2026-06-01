@@ -14,7 +14,161 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          account_type: string
+          allow_adult: boolean
+          allow_explicit: boolean
+          avatar_url: string | null
+          content_filters: string[]
+          content_types: string[]
+          continuity: boolean
+          created_at: string
+          discovery: string
+          display_name: string
+          era: string
+          favorite_genres: string[]
+          format: string
+          id: string
+          intensity: string
+          language: string
+          onboarded: boolean
+          onboarding_step: number
+          origin: string
+          recommendations: boolean
+          updated_at: string
+        }
+        Insert: {
+          account_type?: string
+          allow_adult?: boolean
+          allow_explicit?: boolean
+          avatar_url?: string | null
+          content_filters?: string[]
+          content_types?: string[]
+          continuity?: boolean
+          created_at?: string
+          discovery?: string
+          display_name?: string
+          era?: string
+          favorite_genres?: string[]
+          format?: string
+          id: string
+          intensity?: string
+          language?: string
+          onboarded?: boolean
+          onboarding_step?: number
+          origin?: string
+          recommendations?: boolean
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          allow_adult?: boolean
+          allow_explicit?: boolean
+          avatar_url?: string | null
+          content_filters?: string[]
+          content_types?: string[]
+          continuity?: boolean
+          created_at?: string
+          discovery?: string
+          display_name?: string
+          era?: string
+          favorite_genres?: string[]
+          format?: string
+          id?: string
+          intensity?: string
+          language?: string
+          onboarded?: boolean
+          onboarding_step?: number
+          origin?: string
+          recommendations?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      explorer_usage: {
+        Row: {
+          created_at: string
+          episode_number: number | null
+          guest_id: string
+          id: string
+          media_id: number
+          media_type: string
+          seconds_watched: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          episode_number?: number | null
+          guest_id: string
+          id?: string
+          media_id: number
+          media_type: string
+          seconds_watched?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          episode_number?: number | null
+          guest_id?: string
+          id?: string
+          media_id?: number
+          media_type?: string
+          seconds_watched?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      my_list: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          media_id: number
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          media_id: number
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          media_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "my_list_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tmdb_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
