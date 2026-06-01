@@ -8,7 +8,7 @@ import { Loader2, SlidersHorizontal, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { MediaCard } from "@/components/MediaCard";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import { sortMediaForAccount } from "@/lib/api";
+
 import { canWatch } from "@/lib/maturity";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
@@ -111,7 +111,16 @@ export function InfiniteCatalog({
           doneRef.current = true;
           setDone(true);
         }
-        setItems((prev) => [...prev, ...fresh]);
+        // Ordena APENAS o lote novo antes de anexar.
+        // Itens já renderizados nunca mudam de posição -> scroll estável (sem salto pra cima).
+        const sortedChunk = [...fresh].sort((a, b) => {
+          const pa = (a as any).catalogPriority ?? 0;
+          const pb = (b as any).catalogPriority ?? 0;
+          if (pb !== pa) return pb - pa;
+          if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
+          return (b.year ?? 0) - (a.year ?? 0);
+        });
+        setItems((prev) => [...prev, ...sortedChunk]);
       } finally {
         loadingRef.current = false;
         setLoading(false);
@@ -171,18 +180,10 @@ export function InfiniteCatalog({
     return allowed.filter((m) => opts.some((o) => matchesOption(m, o)));
   }, [allowed, genreOptions, activeGenres]);
 
-  // Ordena por qualidade: rating DESC, ano DESC como desempate.
-  // Os melhores títulos da categoria sempre aparecem primeiro.
-  const visible = useMemo(() => {
-    const accountSorted = sortMediaForAccount(genreFiltered, account);
-    return [...accountSorted].sort((a, b) => {
-      const pa = (a as any).catalogPriority ?? 0;
-      const pb = (b as any).catalogPriority ?? 0;
-      if (pb !== pa) return pb - pa;
-      if (b.rating !== a.rating) return b.rating - a.rating;
-      return (b.year ?? 0) - (a.year ?? 0);
-    });
-  }, [genreFiltered, account]);
+  // NÃO reordena `visible` quando novos itens chegam. A ordenação é feita por lote
+  // dentro de `loadPage`, garantindo que itens já renderizados nunca mudem de posição
+  // (sem isso o infinite scroll empurrava o usuário para cima).
+  const visible = genreFiltered;
 
   const columns = typeof window === "undefined"
     ? 6
