@@ -1111,20 +1111,22 @@ function yearRange(year: number): { gte: string; lte: string } {
 export async function fetchUpcomingMoviesByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, sort_by: "primary_release_date.asc",
+    page, sort_by: "popularity.desc",
     "primary_release_date.gte": gte, "primary_release_date.lte": lte,
     without_genres: ANIMATION_GENRE_ID, include_adult: false,
+    "vote_count.gte": 0,
   });
-  return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, requireReleased: false });
+  return mapList(data.results.filter(isStrictMovieItem), "movie", { minVotes: 0, requireReleased: false, allowMissingOverview: true, allowAnyLang: true });
 }
 export async function fetchUpcomingTvByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
   const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
-    page, sort_by: "first_air_date.asc",
+    page, sort_by: "popularity.desc",
     "first_air_date.gte": gte, "first_air_date.lte": lte,
     without_genres: STRICT_SERIES_EXCLUDED_GENRES, include_adult: false,
+    "vote_count.gte": 0,
   });
-  return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, requireReleased: false });
+  return mapList(data.results.filter(isStrictSeriesItem), "tv", { minVotes: 0, requireReleased: false, allowMissingOverview: true, allowAnyLang: true });
 }
 export async function fetchUpcomingAnimeByYear(year: number, page = 1): Promise<Media[]> {
   const { gte, lte } = yearRange(year);
@@ -1135,7 +1137,7 @@ export async function fetchUpcomingAnimeByYear(year: number, page = 1): Promise<
   const innerPage = Math.floor((page - 1) / (ANIME_LANG_VARIANTS.length * mediaKinds.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
     page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
-    sort_by: kind === "movie" ? "primary_release_date.asc" : "first_air_date.asc",
+    sort_by: "popularity.desc",
     [kind === "movie" ? "primary_release_date.gte" : "first_air_date.gte"]: gte,
     [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: lte,
     include_adult: false,
@@ -1152,7 +1154,7 @@ export async function fetchUpcomingAnimationByYear(year: number, page = 1): Prom
   const innerPage = Math.floor((page - 1) / (WESTERN_ANIMATION_LANG_VARIANTS.length * mediaKinds.length)) + 1;
   const data = await tget<{ results: TmdbItem[] }>(`/discover/${kind}`, {
     page: innerPage, with_genres: ANIMATION_GENRE_ID, with_original_language: lang,
-    sort_by: kind === "movie" ? "primary_release_date.asc" : "first_air_date.asc",
+    sort_by: "popularity.desc",
     [kind === "movie" ? "primary_release_date.gte" : "first_air_date.gte"]: gte,
     [kind === "movie" ? "primary_release_date.lte" : "first_air_date.lte"]: lte,
     include_adult: false,
