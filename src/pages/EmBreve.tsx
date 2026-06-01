@@ -137,7 +137,9 @@ export default function EmBreve() {
       const fb = FRANCHISE_BOOST.test(b.title) ? 0 : 1;
       if (fa !== fb) return fa - fb;
       if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
-      return (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "");
+      // Empate: preserva a ordem do TMDB (popularity.desc) — não força data asc,
+      // o que jogaria títulos sem nota para cima de blockbusters.
+      return 0;
     });
 
     const sorted = ranked;
