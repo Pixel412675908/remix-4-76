@@ -111,7 +111,16 @@ export function InfiniteCatalog({
           doneRef.current = true;
           setDone(true);
         }
-        setItems((prev) => [...prev, ...fresh]);
+        // Ordena APENAS o lote novo antes de anexar.
+        // Itens já renderizados nunca mudam de posição -> scroll estável (sem salto pra cima).
+        const sortedChunk = [...fresh].sort((a, b) => {
+          const pa = (a as any).catalogPriority ?? 0;
+          const pb = (b as any).catalogPriority ?? 0;
+          if (pb !== pa) return pb - pa;
+          if ((b.rating ?? 0) !== (a.rating ?? 0)) return (b.rating ?? 0) - (a.rating ?? 0);
+          return (b.year ?? 0) - (a.year ?? 0);
+        });
+        setItems((prev) => [...prev, ...sortedChunk]);
       } finally {
         loadingRef.current = false;
         setLoading(false);
