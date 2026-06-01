@@ -48,7 +48,7 @@ export type Database = {
           continuity?: boolean
           created_at?: string
           discovery?: string
-          display_name: string
+          display_name?: string
           era?: string
           favorite_genres?: string[]
           format?: string
@@ -138,179 +138,34 @@ export type Database = {
           id?: string
           media_id?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "my_list_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      support_tickets: {
+      tmdb_cache: {
         Row: {
-          category: string
-          created_at: string
-          email: string
-          id: string
-          message: string
-          name: string
-          status: string
+          cache_key: string
+          expires_at: string
+          payload: Json
           updated_at: string
-          user_id: string | null
         }
         Insert: {
-          category: string
-          created_at?: string
-          email: string
-          id?: string
-          message: string
-          name: string
-          status?: string
+          cache_key: string
+          expires_at: string
+          payload: Json
           updated_at?: string
-          user_id?: string | null
         }
         Update: {
-          category?: string
-          created_at?: string
-          email?: string
-          id?: string
-          message?: string
-          name?: string
-          status?: string
+          cache_key?: string
+          expires_at?: string
+          payload?: Json
           updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      user_devices: {
-        Row: {
-          created_at: string
-          device_fingerprint: string
-          device_name: string | null
-          id: string
-          ip_address: string | null
-          last_seen_at: string
-          platform: string | null
-          user_agent: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          device_fingerprint: string
-          device_name?: string | null
-          id?: string
-          ip_address?: string | null
-          last_seen_at?: string
-          platform?: string | null
-          user_agent?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          device_fingerprint?: string
-          device_name?: string | null
-          id?: string
-          ip_address?: string | null
-          last_seen_at?: string
-          platform?: string | null
-          user_agent?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_settings: {
-        Row: {
-          autoplay_next: boolean
-          created_at: string
-          data_saver: boolean
-          discovery_mode: boolean
-          language: string
-          notifications_continue_watching: boolean
-          notifications_new_releases: boolean
-          performance_mode: boolean
-          recommendations_enabled: boolean
-          resume_playback: boolean
-          skip_intro_auto: boolean
-          skip_intro_seconds: number
-          subtitles_enabled: boolean
-          subtitles_language: string
-          updated_at: string
-          user_id: string
-          watch_history_enabled: boolean
-        }
-        Insert: {
-          autoplay_next?: boolean
-          created_at?: string
-          data_saver?: boolean
-          discovery_mode?: boolean
-          language?: string
-          notifications_continue_watching?: boolean
-          notifications_new_releases?: boolean
-          performance_mode?: boolean
-          recommendations_enabled?: boolean
-          resume_playback?: boolean
-          skip_intro_auto?: boolean
-          skip_intro_seconds?: number
-          subtitles_enabled?: boolean
-          subtitles_language?: string
-          updated_at?: string
-          user_id: string
-          watch_history_enabled?: boolean
-        }
-        Update: {
-          autoplay_next?: boolean
-          created_at?: string
-          data_saver?: boolean
-          discovery_mode?: boolean
-          language?: string
-          notifications_continue_watching?: boolean
-          notifications_new_releases?: boolean
-          performance_mode?: boolean
-          recommendations_enabled?: boolean
-          resume_playback?: boolean
-          skip_intro_auto?: boolean
-          skip_intro_seconds?: number
-          subtitles_enabled?: boolean
-          subtitles_language?: string
-          updated_at?: string
-          user_id?: string
-          watch_history_enabled?: boolean
-        }
-        Relationships: []
-      }
-      watch_history: {
-        Row: {
-          completed: boolean
-          created_at: string
-          episode_number: number | null
-          id: string
-          last_opened_at: string
-          media_id: number
-          media_type: string
-          progress_pct: number
-          seconds_watched: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          completed?: boolean
-          created_at?: string
-          episode_number?: number | null
-          id?: string
-          last_opened_at?: string
-          media_id: number
-          media_type: string
-          progress_pct?: number
-          seconds_watched?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          completed?: boolean
-          created_at?: string
-          episode_number?: number | null
-          id?: string
-          last_opened_at?: string
-          media_id?: number
-          media_type?: string
-          progress_pct?: number
-          seconds_watched?: number
-          updated_at?: string
-          user_id?: string
         }
         Relationships: []
       }
