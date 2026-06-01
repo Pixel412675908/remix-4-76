@@ -8,7 +8,7 @@ import { Loader2, SlidersHorizontal, X } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 import { MediaCard } from "@/components/MediaCard";
 import { VideoPlayer } from "@/components/VideoPlayer";
-import { sortMediaForAccount } from "@/lib/api";
+
 import { canWatch } from "@/lib/maturity";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
