@@ -39,7 +39,33 @@ const AUTO: "auto" = "auto";
 type Selected = typeof AUTO | StreamProviderId;
 const STORAGE_KEY = "streamflix:preferred-server";
 
+async function requestFullscreen(el: HTMLElement | null) {
+  if (!el) return;
+  const anyEl = el as any;
+  const fn =
+    el.requestFullscreen ||
+    anyEl.webkitRequestFullscreen ||
+    anyEl.webkitEnterFullscreen ||
+    anyEl.msRequestFullscreen;
+  if (!fn) return;
+  try {
+    await fn.call(el);
+  } catch {
+    /* user gesture / permission denied — ignore */
+  }
+}
+
+async function exitFullscreen() {
+  const d: any = document;
+  const fn = document.exitFullscreen || d.webkitExitFullscreen || d.msExitFullscreen;
+  if (!fn) return;
+  try {
+    if (document.fullscreenElement || d.webkitFullscreenElement) await fn.call(document);
+  } catch {/* ignore */}
+}
+
 export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const { isExplorer } = useAuth();
   const navigate = useNavigate();
   const [explorerBlock, setExplorerBlock] = useState<{ blocked: boolean; reason?: "movie_limit" | "series_limit" } | null>(null);
