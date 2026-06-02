@@ -258,7 +258,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
 
   return (
     <div
-      className={cn("fixed inset-0 z-[100] bg-black flex flex-col", "animate-player-in")}
+      ref={containerRef}
+      className={cn("fixed inset-0 z-[100] bg-black flex flex-col w-screen h-screen", "animate-player-in")}
       role="dialog"
       aria-modal="true"
       aria-label={`Player: ${title}`}
