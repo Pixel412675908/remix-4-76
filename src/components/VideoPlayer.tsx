@@ -432,8 +432,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
             )}
 
             <div
-              className="relative w-full"
-              style={{ maxWidth: "100vw", aspectRatio: "16 / 9" }}
+              className="relative w-full h-full"
+              style={{ maxWidth: "100vw" }}
             >
               <iframe
                 key={src}
@@ -445,8 +445,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
                 }}
                 referrerPolicy="no-referrer"
                 allowFullScreen
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope; clipboard-write"
                 style={{ border: 0, width: "100%", height: "100%", background: "#000", display: "block" }}
               />
             </div>
