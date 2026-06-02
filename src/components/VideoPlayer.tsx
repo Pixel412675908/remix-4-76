@@ -39,7 +39,33 @@ const AUTO: "auto" = "auto";
 type Selected = typeof AUTO | StreamProviderId;
 const STORAGE_KEY = "streamflix:preferred-server";
 
+async function requestFullscreen(el: HTMLElement | null) {
+  if (!el) return;
+  const anyEl = el as any;
+  const fn =
+    el.requestFullscreen ||
+    anyEl.webkitRequestFullscreen ||
+    anyEl.webkitEnterFullscreen ||
+    anyEl.msRequestFullscreen;
+  if (!fn) return;
+  try {
+    await fn.call(el);
+  } catch {
+    /* user gesture / permission denied — ignore */
+  }
+}
+
+async function exitFullscreen() {
+  const d: any = document;
+  const fn = document.exitFullscreen || d.webkitExitFullscreen || d.msExitFullscreen;
+  if (!fn) return;
+  try {
+    if (document.fullscreenElement || d.webkitFullscreenElement) await fn.call(document);
+  } catch {/* ignore */}
+}
+
 export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const { isExplorer } = useAuth();
   const navigate = useNavigate();
   const [explorerBlock, setExplorerBlock] = useState<{ blocked: boolean; reason?: "movie_limit" | "series_limit" } | null>(null);
@@ -85,6 +111,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
+    // Solicita fullscreen no container (gesto do usuário acabou de ocorrer ao clicar Assistir)
+    requestFullscreen(containerRef.current);
     const orient: any = (screen as any).orientation;
     if (orient && typeof orient.lock === "function") {
       orient.lock("landscape").catch(() => {});
@@ -92,6 +120,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
+      exitFullscreen();
       if (orient && typeof orient.unlock === "function") {
         try { orient.unlock(); } catch {/* ignore */}
       }
@@ -229,7 +258,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
 
   return (
     <div
-      className={cn("fixed inset-0 z-[100] bg-black flex flex-col", "animate-player-in")}
+      ref={containerRef}
+      className={cn("fixed inset-0 z-[100] bg-black flex flex-col w-screen h-screen", "animate-player-in")}
       role="dialog"
       aria-modal="true"
       aria-label={`Player: ${title}`}
@@ -402,8 +432,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
             )}
 
             <div
-              className="relative w-full"
-              style={{ maxWidth: "100vw", aspectRatio: "16 / 9" }}
+              className="relative w-full h-full"
+              style={{ maxWidth: "100vw" }}
             >
               <iframe
                 key={src}
@@ -415,8 +445,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
                 }}
                 referrerPolicy="no-referrer"
                 allowFullScreen
-                allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+                allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope; clipboard-write"
                 style={{ border: 0, width: "100%", height: "100%", background: "#000", display: "block" }}
               />
             </div>
