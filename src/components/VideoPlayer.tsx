@@ -111,6 +111,8 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
+    // Solicita fullscreen no container (gesto do usuário acabou de ocorrer ao clicar Assistir)
+    requestFullscreen(containerRef.current);
     const orient: any = (screen as any).orientation;
     if (orient && typeof orient.lock === "function") {
       orient.lock("landscape").catch(() => {});
@@ -118,6 +120,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
+      exitFullscreen();
       if (orient && typeof orient.unlock === "function") {
         try { orient.unlock(); } catch {/* ignore */}
       }
