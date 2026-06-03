@@ -196,6 +196,24 @@ export const Navbar = () => {
                         <SettingsIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
                         Configurações
                       </Link>
+                      <Link
+                        to="/sugerir-titulo"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                      >
+                        <Lightbulb className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                        Sugerir Título
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                        >
+                          <Shield className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                          Admin
+                        </Link>
+                      )}
                       <button
                         onClick={async () => {
                           setMenuOpen(false);
