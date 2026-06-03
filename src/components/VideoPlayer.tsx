@@ -15,6 +15,7 @@ import {
   Server,
   ChevronDown,
   RefreshCw,
+  RotateCw,
 } from "lucide-react";
 import { Media, Episode } from "@/types/media";
 import { useAuth } from "@/hooks/useAuth";
