@@ -28,6 +28,8 @@ import Desenhos from "./pages/Desenhos.tsx";
 import EmBreve from "./pages/EmBreve.tsx";
 import Colecoes from "./pages/Colecoes.tsx";
 import CollectionDetail from "./pages/CollectionDetail.tsx";
+import SuggestTitle from "./pages/SuggestTitle.tsx";
+import Admin from "./pages/Admin.tsx";
 
 import { useScrollRestoration } from "@/hooks/useScrollRestoration";
 import { useCatalogCountsLogger } from "@/hooks/useCatalogCountsLogger";
