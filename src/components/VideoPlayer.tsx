@@ -446,6 +446,7 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
                 }}
                 referrerPolicy="no-referrer"
                 allowFullScreen
+                sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-orientation-lock"
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture; accelerometer; gyroscope; clipboard-write"
                 style={{ border: 0, width: "100%", height: "100%", background: "#000", display: "block" }}
               />
