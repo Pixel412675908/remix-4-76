@@ -91,10 +91,13 @@ const Onboarding = () => {
     if (saving) return;
     setSaving(true);
     try {
+      const adultHash =
+        draft.account_type !== "kids" && adultPwd
+          ? await hashAdultPassword(user!.id, adultPwd)
+          : null;
+
       const patch: Partial<Account> = {
         account_type: draft.account_type,
-        // Conta adulta/teen recebem +18 geral ATIVADO por padrão.
-        // Conteúdo explícito permanece OFF (configurável depois em Configurações).
         allow_adult: draft.account_type !== "kids",
         favorite_genres: draft.favorite_genres,
         content_filters: draft.content_filters,
@@ -108,6 +111,7 @@ const Onboarding = () => {
         intensity: draft.intensity,
         onboarded: true,
         onboarding_step: TOTAL,
+        adult_password_hash: adultHash,
       };
       await updateAccount(patch);
       toast({
