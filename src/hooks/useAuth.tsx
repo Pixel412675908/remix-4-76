@@ -58,16 +58,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [account, setAccount] = useState<Account | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isExplorer, setIsExplorer] = useState<boolean>(() => localStorage.getItem(EXPLORER_KEY) === "1");
   const [loading, setLoading] = useState(true);
 
   const loadAccount = useCallback(async (uid: string) => {
     const { data } = await supabase.from("accounts").select("*").eq("id", uid).maybeSingle();
     setAccount((data ?? null) as Account | null);
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", uid);
+    setIsAdmin(!!roleRows?.some((r) => r.role === "admin"));
   }, []);
 
   const clearLocalView = useCallback(() => {
     setAccount(null);
+    setIsAdmin(false);
   }, []);
 
   const hydrateFromSession = useCallback(
