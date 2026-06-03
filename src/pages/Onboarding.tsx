@@ -1,13 +1,14 @@
-// Onboarding completo — 11 etapas, uma pergunta por tela, barra de progresso
+// Onboarding completo — 12 etapas, uma pergunta por tela, barra de progresso
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Sparkles, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ALL_GENRES, type Account, type AccountType } from "@/types/media";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { hashAdultPassword } from "@/lib/adultPassword";
 
 type Draft = {
   account_type: AccountType;
@@ -23,7 +24,7 @@ type Draft = {
   intensity: "light" | "moderate" | "intense";
 };
 
-const TOTAL = 11;
+const TOTAL = 12;
 
 const Onboarding = () => {
   const navigate = useNavigate();
@@ -31,6 +32,8 @@ const Onboarding = () => {
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [adultPwd, setAdultPwd] = useState("");
+  const [adultPwd2, setAdultPwd2] = useState("");
   const [draft, setDraft] = useState<Draft>({
     account_type: "adult",
     content_filters: ["light"],
@@ -75,19 +78,26 @@ const Onboarding = () => {
         return draft.favorite_genres.length >= 5;
       case 4:
         return draft.content_types.length > 0;
+      case 12:
+        // Kids pula a senha adulta
+        if (draft.account_type === "kids") return true;
+        return adultPwd.length >= 4 && adultPwd === adultPwd2;
       default:
         return true;
     }
-  }, [step, draft]);
+  }, [step, draft, adultPwd, adultPwd2]);
 
   const finish = async () => {
     if (saving) return;
     setSaving(true);
     try {
+      const adultHash =
+        draft.account_type !== "kids" && adultPwd
+          ? await hashAdultPassword(user!.id, adultPwd)
+          : null;
+
       const patch: Partial<Account> = {
         account_type: draft.account_type,
-        // Conta adulta/teen recebem +18 geral ATIVADO por padrão.
-        // Conteúdo explícito permanece OFF (configurável depois em Configurações).
         allow_adult: draft.account_type !== "kids",
         favorite_genres: draft.favorite_genres,
         content_filters: draft.content_filters,
@@ -101,6 +111,7 @@ const Onboarding = () => {
         intensity: draft.intensity,
         onboarded: true,
         onboarding_step: TOTAL,
+        adult_password_hash: adultHash,
       };
       await updateAccount(patch);
       toast({
@@ -315,6 +326,56 @@ const Onboarding = () => {
                 />
               </Grid3>
             </Question>
+          )}
+
+          {step === 12 && (
+            draft.account_type === "kids" ? (
+              <Question title="Tudo pronto!" subtitle="Perfis Kids não usam senha de conteúdo adulto.">
+                <div className="rounded-2xl border border-border bg-surface-elevated/80 p-6 text-sm text-muted-foreground">
+                  Avance para concluir.
+                </div>
+              </Question>
+            ) : (
+              <Question
+                title="Defina sua senha de conteúdo adulto"
+                subtitle="Mínimo de 4 caracteres. Será exigida para acessar conteúdo +18 explícito."
+              >
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={adultPwd}
+                      onChange={(e) => setAdultPwd(e.target.value)}
+                      placeholder="Senha"
+                      autoComplete="new-password"
+                      minLength={4}
+                      maxLength={72}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-surface-elevated border border-white/10 text-white text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={adultPwd2}
+                      onChange={(e) => setAdultPwd2(e.target.value)}
+                      placeholder="Confirmar senha"
+                      autoComplete="new-password"
+                      minLength={4}
+                      maxLength={72}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-surface-elevated border border-white/10 text-white text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  {adultPwd2 && adultPwd !== adultPwd2 && (
+                    <p className="text-xs text-primary">As senhas não coincidem.</p>
+                  )}
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary-glow">
+                    ⚠️ Esta senha <strong>não poderá ser recuperada</strong>. Guarde-a com segurança.
+                  </div>
+                </div>
+              </Question>
+            )
           )}
         </div>
 

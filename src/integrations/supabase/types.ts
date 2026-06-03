@@ -17,6 +17,7 @@ export type Database = {
       accounts: {
         Row: {
           account_type: string
+          adult_password_hash: string | null
           allow_adult: boolean
           allow_explicit: boolean
           avatar_url: string | null
@@ -40,6 +41,7 @@ export type Database = {
         }
         Insert: {
           account_type?: string
+          adult_password_hash?: string | null
           allow_adult?: boolean
           allow_explicit?: boolean
           avatar_url?: string | null
@@ -63,6 +65,7 @@ export type Database = {
         }
         Update: {
           account_type?: string
+          adult_password_hash?: string | null
           allow_adult?: boolean
           allow_explicit?: boolean
           avatar_url?: string | null
@@ -83,6 +86,36 @@ export type Database = {
           origin?: string
           recommendations?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      empty_searches: {
+        Row: {
+          count: number
+          email: string | null
+          first_searched_at: string
+          id: string
+          last_searched_at: string
+          term: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          email?: string | null
+          first_searched_at?: string
+          id?: string
+          last_searched_at?: string
+          term: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          email?: string | null
+          first_searched_at?: string
+          id?: string
+          last_searched_at?: string
+          term?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -148,6 +181,36 @@ export type Database = {
           },
         ]
       }
+      title_suggestions: {
+        Row: {
+          category: string
+          created_at: string
+          email: string | null
+          id: string
+          note: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          note?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          note?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tmdb_cache: {
         Row: {
           cache_key: string
@@ -169,15 +232,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      record_empty_search: {
+        Args: { _email: string; _term: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -304,6 +398,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

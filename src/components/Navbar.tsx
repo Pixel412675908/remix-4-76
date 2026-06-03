@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, UserCircle2 } from "lucide-react";
+import { Search, User as UserIcon, LogOut, Settings as SettingsIcon, Compass, ChevronDown, X, UserCircle2, Lightbulb, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useI18n } from "@/lib/i18n";
@@ -21,7 +21,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
-  const { user, account, activeProfile, isExplorer, signOut } = useAuth();
+  const { user, account, activeProfile, isExplorer, isAdmin, signOut } = useAuth();
   const { avatarUrl: ctxAvatar } = useUserAvatar();
 
   // Esconde a barra de navegação secundária (e a navbar inteira em telas
@@ -196,6 +196,24 @@ export const Navbar = () => {
                         <SettingsIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
                         Configurações
                       </Link>
+                      <Link
+                        to="/sugerir-titulo"
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                      >
+                        <Lightbulb className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+                        Sugerir Título
+                      </Link>
+                      {isAdmin && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-2.5 px-2 py-2 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                        >
+                          <Shield className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                          Admin
+                        </Link>
+                      )}
                       <button
                         onClick={async () => {
                           setMenuOpen(false);
