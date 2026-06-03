@@ -32,6 +32,8 @@ const Onboarding = () => {
 
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [adultPwd, setAdultPwd] = useState("");
+  const [adultPwd2, setAdultPwd2] = useState("");
   const [draft, setDraft] = useState<Draft>({
     account_type: "adult",
     content_filters: ["light"],
