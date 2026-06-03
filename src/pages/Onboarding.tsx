@@ -327,6 +327,56 @@ const Onboarding = () => {
               </Grid3>
             </Question>
           )}
+
+          {step === 12 && (
+            draft.account_type === "kids" ? (
+              <Question title="Tudo pronto!" subtitle="Perfis Kids não usam senha de conteúdo adulto.">
+                <div className="rounded-2xl border border-border bg-surface-elevated/80 p-6 text-sm text-muted-foreground">
+                  Avance para concluir.
+                </div>
+              </Question>
+            ) : (
+              <Question
+                title="Defina sua senha de conteúdo adulto"
+                subtitle="Mínimo de 4 caracteres. Será exigida para acessar conteúdo +18 explícito."
+              >
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={adultPwd}
+                      onChange={(e) => setAdultPwd(e.target.value)}
+                      placeholder="Senha"
+                      autoComplete="new-password"
+                      minLength={4}
+                      maxLength={72}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-surface-elevated border border-white/10 text-white text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="password"
+                      value={adultPwd2}
+                      onChange={(e) => setAdultPwd2(e.target.value)}
+                      placeholder="Confirmar senha"
+                      autoComplete="new-password"
+                      minLength={4}
+                      maxLength={72}
+                      className="w-full pl-10 pr-4 py-3 rounded-lg bg-surface-elevated border border-white/10 text-white text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  {adultPwd2 && adultPwd !== adultPwd2 && (
+                    <p className="text-xs text-primary">As senhas não coincidem.</p>
+                  )}
+                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-primary-glow">
+                    ⚠️ Esta senha <strong>não poderá ser recuperada</strong>. Guarde-a com segurança.
+                  </div>
+                </div>
+              </Question>
+            )
+          )}
         </div>
 
         {/* Footer ações */}
