@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { I18nProvider } from "@/lib/i18n";
 import { UserAvatarProvider } from "@/contexts/UserAvatarContext";
+import { AdultGateProvider } from "@/contexts/AdultGateContext";
 import { ReactNode } from "react";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
