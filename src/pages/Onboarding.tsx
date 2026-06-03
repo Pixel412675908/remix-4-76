@@ -1,13 +1,14 @@
-// Onboarding completo — 11 etapas, uma pergunta por tela, barra de progresso
+// Onboarding completo — 12 etapas, uma pergunta por tela, barra de progresso
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Sparkles, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ALL_GENRES, type Account, type AccountType } from "@/types/media";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { hashAdultPassword } from "@/lib/adultPassword";
 
 type Draft = {
   account_type: AccountType;
@@ -23,7 +24,7 @@ type Draft = {
   intensity: "light" | "moderate" | "intense";
 };
 
-const TOTAL = 11;
+const TOTAL = 12;
 
 const Onboarding = () => {
   const navigate = useNavigate();
