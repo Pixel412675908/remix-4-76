@@ -185,6 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         account,
         activeProfile,
         isExplorer,
+        isAdmin,
         loading,
         signUp,
         signIn,
