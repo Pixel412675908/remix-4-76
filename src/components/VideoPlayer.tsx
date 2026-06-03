@@ -297,6 +297,25 @@ export const VideoPlayer = ({ media, episode, open, onClose }: VideoPlayerProps)
               </div>
             )}
 
+            {/* Girar tela / Fullscreen manual */}
+            {!lockedFree && !reachedLimit && (
+              <button
+                onClick={async () => {
+                  await requestFullscreen(containerRef.current);
+                  const o: any = (screen as any).orientation;
+                  if (o && typeof o.lock === "function") {
+                    try { await o.lock("landscape"); } catch {/* ignore */}
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border border-white/15 transition"
+                aria-label="Girar tela e entrar em tela cheia"
+                title="Girar tela"
+              >
+                <RotateCw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Girar</span>
+              </button>
+            )}
+
             {/* Seletor de servidor */}
             {!lockedFree && !reachedLimit && (
               <div className="relative">
