@@ -78,10 +78,14 @@ const Onboarding = () => {
         return draft.favorite_genres.length >= 5;
       case 4:
         return draft.content_types.length > 0;
+      case 12:
+        // Kids pula a senha adulta
+        if (draft.account_type === "kids") return true;
+        return adultPwd.length >= 4 && adultPwd === adultPwd2;
       default:
         return true;
     }
-  }, [step, draft]);
+  }, [step, draft, adultPwd, adultPwd2]);
 
   const finish = async () => {
     if (saving) return;
