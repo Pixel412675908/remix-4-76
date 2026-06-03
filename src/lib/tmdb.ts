@@ -600,9 +600,32 @@ export async function fetchNovelasTurkish(page = 1): Promise<Media[]> {
   });
   return mapList(data.results.filter(isStrictNovelaItem), "tv", { minVotes: 0, allowAnyLang: true, allowMissingOverview: true });
 }
+export async function fetchNovelasAsianRomance(page = 1): Promise<Media[]> {
+  // Doramas românticos asiáticos (KR, JP, CN, TW) — romance/drama, sem ação/suspense/terror/ficção
+  const langs = ["ko", "ja", "zh"] as const;
+  const sorts = ["popularity.desc", "first_air_date.desc", "vote_count.desc"] as const;
+  const variant = (page - 1) % (langs.length * sorts.length);
+  const lang = langs[variant % langs.length];
+  const sort = sorts[Math.floor(variant / langs.length) % sorts.length];
+  const innerPage = Math.floor((page - 1) / (langs.length * sorts.length)) + 1;
+  const data = await tget<{ results: TmdbItem[] }>("/discover/tv", {
+    page: innerPage,
+    with_original_language: lang,
+    with_genres: "10749,18", // Romance + Drama
+    without_genres: "10759,9648,80,10765,27,53,16", // sem Action&Adventure, Mystery, Crime, Sci-Fi&Fantasy, Horror, Thriller, Animation
+    sort_by: sort,
+    "vote_count.gte": 20,
+    "first_air_date.lte": TODAY,
+  });
+  return mapList(data.results, "tv", { minVotes: 20, allowAnyLang: true, allowMissingOverview: true });
+}
 export async function fetchNovelas(page = 1): Promise<Media[]> {
-  if (page % 2 === 1) return fetchNovelasInternational(Math.ceil(page / 2));
-  return fetchNovelasTurkish(page / 2);
+  // Intercala: novelas internacionais, turcas e doramas românticos asiáticos
+  const mod = (page - 1) % 3;
+  const inner = Math.floor((page - 1) / 3) + 1;
+  if (mod === 0) return fetchNovelasInternational(inner);
+  if (mod === 1) return fetchNovelasTurkish(inner);
+  return fetchNovelasAsianRomance(inner);
 }
 export async function fetchModernClassics(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
