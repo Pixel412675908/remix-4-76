@@ -1,11 +1,12 @@
-// MediaCard — minimalista, menor, com indicador de bloqueio para explorer
+// MediaCard — minimalista, com indicador de bloqueio (explorer + adulto) e coração de favorito
 
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Play, Plus, Check, Star, Lock } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Play, Plus, Check, Star, Lock, Heart } from "lucide-react";
 import { Media } from "@/types/media";
 import { useMyList } from "@/hooks/useMyList";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdultGate } from "@/contexts/AdultGateContext";
 import { cn } from "@/lib/utils";
 
 interface MediaCardProps {
@@ -16,11 +17,23 @@ interface MediaCardProps {
 export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
   const [hover, setHover] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { has, toggle } = useMyList();
   const { isExplorer } = useAuth();
+  const { unlocked, requireUnlock } = useAdultGate();
   const inList = has(media.id);
-  const locked = isExplorer && !media.freeForExplorer;
+  const explorerLocked = isExplorer && !media.freeForExplorer;
+  const adultLocked = !!media.adult && !unlocked;
+  const locked = explorerLocked || adultLocked;
   const detailLink = media.type === "tv" ? `/series/${media.id}` : `/movie/${media.id}`;
+
+  const handleClick = (e: React.MouseEvent) => {
+    sessionStorage.setItem(`scroll_${location.pathname}${location.search}`, String(window.scrollY));
+    if (adultLocked) {
+      e.preventDefault();
+      requireUnlock(() => navigate(detailLink));
+    }
+  };
 
   return (
     <article
@@ -35,7 +48,7 @@ export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
       <Link
         to={detailLink}
         className="block w-full h-full"
-        onClick={() => sessionStorage.setItem(`scroll_${location.pathname}${location.search}`, String(window.scrollY))}
+        onClick={handleClick}
       >
         <div
           className={cn(
@@ -52,13 +65,33 @@ export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
             loading="lazy"
             width={500}
             height={750}
-            className="w-full h-full object-cover"
+            className={cn("w-full h-full object-cover", adultLocked && "blur-md scale-110")}
           />
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/10 to-transparent" />
 
-          {locked && (
-            <div className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-background/80 backdrop-blur grid place-items-center">
+          {/* Coração — Minha Lista */}
+          {inList && (
+            <div className="absolute top-1.5 right-1.5 z-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
+              <Heart className="h-4 w-4 fill-white text-white" />
+            </div>
+          )}
+
+          {/* Cadeado central — adulto */}
+          {adultLocked && (
+            <div className="absolute inset-0 grid place-items-center z-10">
+              <div
+                className="h-12 w-12 rounded-full grid place-items-center"
+                style={{ backgroundColor: "rgba(229,9,20,0.9)", boxShadow: "0 8px 24px rgba(0,0,0,0.6)" }}
+              >
+                <Lock className="h-5 w-5 text-white" />
+              </div>
+            </div>
+          )}
+
+          {/* Cadeado canto — explorer */}
+          {explorerLocked && !adultLocked && (
+            <div className="absolute top-1.5 left-1.5 h-6 w-6 rounded-full bg-background/80 backdrop-blur grid place-items-center">
               <Lock className="h-3 w-3 text-muted-foreground" />
             </div>
           )}
@@ -102,7 +135,11 @@ export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
               <button
                 onClick={(e) => {
                   e.preventDefault();
-                  onPlay?.(media);
+                  if (adultLocked) {
+                    requireUnlock(() => onPlay?.(media));
+                  } else {
+                    onPlay?.(media);
+                  }
                 }}
                 aria-label="Reproduzir"
                 className="h-7 w-7 grid place-items-center rounded-full bg-foreground text-background hover:bg-primary hover:text-primary-foreground transition-colors"
