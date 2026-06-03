@@ -93,6 +93,7 @@ export interface Account {
   continuity: boolean;
   recommendations: boolean;
   intensity: IntensityPref;
+  adult_password_hash?: string | null;
 }
 
 export type MaturityLevel = "kids" | "teen" | "adult";
