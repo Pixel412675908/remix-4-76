@@ -21,7 +21,7 @@ export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
-  const { user, account, activeProfile, isExplorer, signOut } = useAuth();
+  const { user, account, activeProfile, isExplorer, isAdmin, signOut } = useAuth();
   const { avatarUrl: ctxAvatar } = useUserAvatar();
 
   // Esconde a barra de navegação secundária (e a navbar inteira em telas
