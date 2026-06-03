@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Media } from "@/types/media";
 
 const Search = () => {
-  const { account, activeProfile } = useAuth();
+  const { account, activeProfile, user } = useAuth();
   const [params] = useSearchParams();
   const q = params.get("q") ?? "";
   const [results, setResults] = useState<Media[]>([]);
@@ -28,11 +28,18 @@ const Search = () => {
     setLoading(true);
     const handle = setTimeout(() => {
       searchMedia(q)
-        .then(setResults)
+        .then((res) => {
+          setResults(res);
+          // Registrar pesquisas sem resultado
+          if (user && res.length === 0 && q.trim().length >= 3) {
+            const term = q.trim().toLowerCase().slice(0, 120);
+            supabase.rpc("record_empty_search", { _term: term, _email: user.email ?? null }).then(() => {}, () => {});
+          }
+        })
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [q]);
+  }, [q, user]);
 
   const visibleResults = sortMediaForAccount(
     results.filter((m) => canWatch(m, activeProfile, account)),
