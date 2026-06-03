@@ -19,6 +19,7 @@ interface AuthCtx {
   /** Objeto sintético derivado da conta (compat). */
   activeProfile: Profile | null;
   isExplorer: boolean;
+  isAdmin: boolean;
   loading: boolean;
 
   signUp: (email: string, password: string, displayName: string) => Promise<{ error?: string }>;
