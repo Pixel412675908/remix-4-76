@@ -8,6 +8,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { searchMedia, sortMediaForAccount } from "@/lib/api";
 import { canWatch } from "@/lib/maturity";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { Media } from "@/types/media";
 
 const Search = () => {
