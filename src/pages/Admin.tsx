@@ -81,7 +81,14 @@ const Admin = () => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
-  if (loading || !isAdmin) return null;
+  if (loading || profileLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">
+        Verificando permissões...
+      </div>
+    );
+  }
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-background">
