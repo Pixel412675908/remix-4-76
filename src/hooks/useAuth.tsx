@@ -21,6 +21,7 @@ interface AuthCtx {
   isExplorer: boolean;
   isAdmin: boolean;
   loading: boolean;
+  profileLoading: boolean;
 
   signUp: (email: string, password: string, displayName: string) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
