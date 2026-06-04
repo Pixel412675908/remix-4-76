@@ -62,15 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isExplorer, setIsExplorer] = useState<boolean>(() => localStorage.getItem(EXPLORER_KEY) === "1");
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const loadAccount = useCallback(async (uid: string) => {
-    const { data } = await supabase.from("accounts").select("*").eq("id", uid).maybeSingle();
-    setAccount((data ?? null) as Account | null);
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-    setIsAdmin(!!roleRows?.some((r) => r.role === "admin"));
+    setProfileLoading(true);
+    try {
+      const { data } = await supabase.from("accounts").select("*").eq("id", uid).maybeSingle();
+      setAccount((data ?? null) as Account | null);
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid);
+      setIsAdmin(!!roleRows?.some((r) => r.role === "admin"));
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   const clearLocalView = useCallback(() => {
