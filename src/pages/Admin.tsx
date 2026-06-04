@@ -23,7 +23,7 @@ interface SuggestionRow {
 }
 
 const Admin = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, profileLoading } = useAuth();
   const navigate = useNavigate();
 
   const [empties, setEmpties] = useState<EmptySearchRow[]>([]);
@@ -33,9 +33,10 @@ const Admin = () => {
   const [catFilter, setCatFilter] = useState("");
 
   useEffect(() => {
-    if (loading) return;
-    if (!user || !isAdmin) navigate("/", { replace: true });
-  }, [user, isAdmin, loading, navigate]);
+    if (loading || profileLoading) return;
+    if (!user) { navigate("/login", { replace: true }); return; }
+    if (!isAdmin) navigate("/", { replace: true });
+  }, [user, isAdmin, loading, profileLoading, navigate]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -80,7 +81,14 @@ const Admin = () => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10);
 
-  if (loading || !isAdmin) return null;
+  if (loading || profileLoading) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background text-muted-foreground text-sm">
+        Verificando permissões...
+      </div>
+    );
+  }
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-background">

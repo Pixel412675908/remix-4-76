@@ -21,6 +21,7 @@ interface AuthCtx {
   isExplorer: boolean;
   isAdmin: boolean;
   loading: boolean;
+  profileLoading: boolean;
 
   signUp: (email: string, password: string, displayName: string) => Promise<{ error?: string }>;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
@@ -61,15 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isExplorer, setIsExplorer] = useState<boolean>(() => localStorage.getItem(EXPLORER_KEY) === "1");
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   const loadAccount = useCallback(async (uid: string) => {
-    const { data } = await supabase.from("accounts").select("*").eq("id", uid).maybeSingle();
-    setAccount((data ?? null) as Account | null);
-    const { data: roleRows } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-    setIsAdmin(!!roleRows?.some((r) => r.role === "admin"));
+    setProfileLoading(true);
+    try {
+      const { data } = await supabase.from("accounts").select("*").eq("id", uid).maybeSingle();
+      setAccount((data ?? null) as Account | null);
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid);
+      setIsAdmin(!!roleRows?.some((r) => r.role === "admin"));
+    } finally {
+      setProfileLoading(false);
+    }
   }, []);
 
   const clearLocalView = useCallback(() => {
@@ -84,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sess?.user) {
         setIsExplorer(false);
         localStorage.removeItem(EXPLORER_KEY);
+        setProfileLoading(true);
         // Defer Supabase calls to avoid deadlock inside auth callback
         setTimeout(() => {
           loadAccount(sess.user.id);
@@ -187,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isExplorer,
         isAdmin,
         loading,
+        profileLoading,
         signUp,
         signIn,
         enterAsExplorer,
