@@ -70,11 +70,29 @@ export const MediaCard = ({ media, onPlay }: MediaCardProps) => {
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/10 to-transparent" />
 
-          {/* Coração — Minha Lista */}
-          {inList && (
-            <div className="absolute top-1.5 right-1.5 z-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.8)]">
-              <Heart className="h-4 w-4 fill-white text-white" />
-            </div>
+          {/* Coração — Minha Lista (sempre visível, toggle direto) */}
+          {!adultLocked && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggle(media.id);
+              }}
+              aria-label={inList ? "Remover da minha lista" : "Adicionar à minha lista"}
+              className={cn(
+                "absolute top-1.5 right-1.5 z-20 h-7 w-7 grid place-items-center rounded-full",
+                "backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95",
+                inList
+                  ? "bg-primary/90 text-white shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+                  : "bg-black/40 text-white/85 hover:bg-black/60"
+              )}
+            >
+              <Heart
+                className={cn("h-3.5 w-3.5", inList ? "fill-white" : "fill-transparent")}
+                strokeWidth={2.25}
+              />
+            </button>
           )}
 
           {/* Cadeado central — adulto */}
