@@ -634,19 +634,68 @@ export async function fetchModernClassics(page = 1): Promise<Media[]> {
   });
   return mapList(data.results, "movie", { minVotes: 1000 });
 }
+// Conteúdo +18: filmes populares de horror/terror/suspense pesado (violência,
+// gore). Exclui Drama/Crime genéricos (que estavam trazendo "Os Caras Malvados").
 export async function fetchAdultMovies(page = 1): Promise<Media[]> {
+  // Páginas alternam: horror puro -> horror + thriller (mais variedade popular)
+  const horrorOnly = page % 2 === 1;
+  const inner = Math.ceil(page / 2);
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, with_genres: "18,53,27,80", "vote_average.gte": 6, "vote_count.gte": 100,
-    sort_by: "popularity.desc", include_adult: true, "release_date.lte": TODAY,
+    page: inner,
+    with_genres: horrorOnly ? "27" : "27,53",
+    without_genres: `${ANIMATION_GENRE_ID},10751,10762`, // sem animação/família/kids
+    "vote_average.gte": 5.5,
+    "vote_count.gte": 500,
+    sort_by: "popularity.desc",
+    include_adult: false,
+    "release_date.lte": TODAY,
   });
-  return mapList(data.results, "movie", { minVotes: 100 });
+  const items = data.results.filter((i) => (i.genre_ids ?? []).includes(27)); // exige Horror
+  return mapList(items, "movie", { minVotes: 200 });
 }
+
+// Adulto Explícito: APENAS conteúdo sexual/erótico. Usa whitelist curada de IDs
+// TMDB para garantir popularidade real (365 Dias, 50 Tons, Emmanuelle, etc).
+const EXPLICIT_WHITELIST_IDS: number[] = [
+  337170, 919207, 985939,          // 365 Dni trilogy
+  250546, 339846, 399361,          // Fifty Shades trilogy
+  396422, 537056, 613504, 718789,  // After saga
+  130392,                          // Sex/Life (série)
+  138843,                          // Below Her Mouth
+  227156, 264644,                  // Nymphomaniac I / II
+  1145,                            // Last Tango in Paris
+  11551,                           // Emmanuelle (1974)
+  8332,                            // Shortbus
+  17473,                           // 9 Songs
+  1018,                            // Mulholland Drive
+  11423,                           // Eyes Wide Shut
+  31867,                           // Lust, Caution
+  47964,                           // The Dreamers
+  3174,                            // In the Realm of the Senses
+  504253,                          // Climax
+  76122,                           // The Handmaiden
+  43959,                           // Blue Is the Warmest Colour
+  9504,                            // Original Sin
+  9472,                            // Wild Things
+  857,                             // Basic Instinct
+  9543,                            // Showgirls
+];
+
 export async function fetchExplicitMovies(page = 1): Promise<Media[]> {
-  const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
-    page, sort_by: "popularity.desc", include_adult: true,
-    with_keywords: "190370|268782|6149", "vote_count.gte": 10,
-  });
-  return mapList(data.results, "movie", { minVotes: 10 });
+  const PER_PAGE = 12;
+  const start = (page - 1) * PER_PAGE;
+  const slice = EXPLICIT_WHITELIST_IDS.slice(start, start + PER_PAGE);
+  if (slice.length === 0) return [];
+  const fetched = await Promise.all(
+    slice.map((id) =>
+      tget<TmdbItem & { genres?: { id: number }[] }>(`/movie/${id}`, {}).then((m) => ({
+        ...m,
+        genre_ids: m.genres?.map((g) => g.id) ?? [],
+      })).catch(() => null)
+    )
+  );
+  const items = fetched.filter((x): x is TmdbItem => !!x);
+  return mapList(items, "movie", { minVotes: 0, allowHentai: true });
 }
 export async function fetchUpcomingMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {
