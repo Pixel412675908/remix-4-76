@@ -118,27 +118,32 @@ async function loadGenres(): Promise<Record<number, string>> {
   return map;
 }
 
-const EXPLICIT_KEYWORDS = /\b(erotic|softcore|hardcore|sex\s*scene|nudit|porn|xxx|hentai|ecchi|sensual|yaoi|yuri|uncensored|adult\s*animation)\b/i;
-const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|365\s*bonus|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|love\s*\(2015\)|blue\s*is\s*the\s*warmest|the\s*idol|elite\s*short|caligula|overflow|mignon|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas|modaete\s*yo\s*adam|adam[- ]?kun|shuudengo|aika|bible\s*black|night\s*shift\s*nurses|discipline|yarichin|futab部|isekai\s*harem|harem\s*in\s*the\s*labyrinth|redo\s*of\s*healer|interspecies\s*reviewers|ishuzoku\s*reviewers|yosuga\s*no\s*sora|kiss\s*x\s*sis)\b/i;
-// IDs TMDB de filmes/séries notórios por sexo explícito.
+// Critérios estritos: APENAS conteúdo sexual/erótico explícito.
+// NÃO usamos: violência, terror, ação, "sensual", "nudity" (palavras genéricas
+// que aparecem em sinopses de Batman, Príncipe da Pérsia, etc.).
+const EXPLICIT_KEYWORDS = /\b(softcore|hardcore|pornograph|porn\b|xxx\b|hentai|ecchi|yaoi|yuri|uncensored\s*sex|explicit\s*sex|graphic\s*sex|unsimulated\s*sex|sexo\s*expl[ií]cito|cena\s*de\s*sexo\s*expl[ií]cit)\b/i;
+const EXPLICIT_TITLE_REGEX = /\b(365\s*(d[ií]as|days|dni)|fifty\s*shades|cinquenta\s*tons|sex\/?life|emmanuelle|nymphomaniac|9\s*songs|in\s*the\s*realm\s*of\s*the\s*senses|blue\s*is\s*the\s*warmest|the\s*idol|caligula|bible\s*black|night\s*shift\s*nurses|yarichin|interspecies\s*reviewers|ishuzoku\s*reviewers|yosuga\s*no\s*sora)\b/i;
+// IDs TMDB de filmes/séries notórios por sexo explícito (whitelist curada).
 const EXPLICIT_BLACKLIST_IDS = new Set<number>([
   337170, 919207, 985939, // 365 Days trilogy
   250546, 339846, 399361, // Fifty Shades trilogy
   130392,                 // Sex/Life
   138843,                 // Below Her Mouth
-  396422,                 // After
-  537056, 613504, 718789, // After sequels (mais adultas)
-  76600,                  // (placeholder seguro p/ ajustar)
+  227156, 264644,         // Nymphomaniac I/II
+  11551, 8332, 17473,     // Emmanuelle, Shortbus, 9 Songs
+  3174, 504253, 43959,    // Realm of the Senses, Climax, Blue is the Warmest
 ]);
-const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx|overflow|mignon|adam[- ]?kun|modaete|no\s*love\s*zone|4\s*weeks?\s*lovers?|namoro\s*de\s*4\s*semanas)\b/i;
-const MATURE_KEYWORDS = /\b(violent|gore|graphic|brutal|crime|drug|war|gangster)\b/i;
+const HENTAI_KEYWORDS = /\b(hentai|ecchi|yaoi|yuri|h-anime|porn|xxx)\b/i;
+const MATURE_KEYWORDS = /\b(violent|gore|graphic\s*violence|brutal|gangster)\b/i;
 const MATURE_GENRE_IDS = new Set([10752, 80, 27, 53, 9648]);
 
 function classifyMaturity(item: TmdbItem) {
   const text = `${item.title ?? ""} ${item.name ?? ""} ${item.overview ?? ""}`;
   const titleOnly = `${item.title ?? ""} ${item.name ?? ""}`;
+  // Explícito SOMENTE via whitelist por ID, título notório ou palavra-chave forte.
+  // Ignoramos `item.adult` da TMDB porque a flag é inconsistente e produz falsos
+  // positivos em filmes mainstream (Batman, Príncipe da Pérsia, etc).
   const explicit =
-    !!item.adult ||
     EXPLICIT_BLACKLIST_IDS.has(item.id) ||
     EXPLICIT_TITLE_REGEX.test(titleOnly) ||
     EXPLICIT_KEYWORDS.test(text);
