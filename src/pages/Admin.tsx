@@ -33,9 +33,10 @@ const Admin = () => {
   const [catFilter, setCatFilter] = useState("");
 
   useEffect(() => {
-    if (loading) return;
-    if (!user || !isAdmin) navigate("/", { replace: true });
-  }, [user, isAdmin, loading, navigate]);
+    if (loading || profileLoading) return;
+    if (!user) { navigate("/login", { replace: true }); return; }
+    if (!isAdmin) navigate("/", { replace: true });
+  }, [user, isAdmin, loading, profileLoading, navigate]);
 
   useEffect(() => {
     if (!isAdmin) return;
