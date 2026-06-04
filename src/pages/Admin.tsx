@@ -23,7 +23,7 @@ interface SuggestionRow {
 }
 
 const Admin = () => {
-  const { user, isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading, profileLoading } = useAuth();
   const navigate = useNavigate();
 
   const [empties, setEmpties] = useState<EmptySearchRow[]>([]);
