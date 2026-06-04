@@ -195,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isExplorer,
         isAdmin,
         loading,
+        profileLoading,
         signUp,
         signIn,
         enterAsExplorer,
