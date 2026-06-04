@@ -91,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sess?.user) {
         setIsExplorer(false);
         localStorage.removeItem(EXPLORER_KEY);
+        setProfileLoading(true);
         // Defer Supabase calls to avoid deadlock inside auth callback
         setTimeout(() => {
           loadAccount(sess.user.id);
