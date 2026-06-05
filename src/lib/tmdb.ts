@@ -20,13 +20,15 @@ const tmdbMemoryCache = new Map<string, { expiresAt: number; payload: unknown }>
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
+// Bumped to invalidate stale cached payloads after explicit/anime/blacklist fixes.
+const CACHE_VERSION = "v4";
 function cacheKeyFor(path: string, params: Record<string, string | number | boolean | undefined>): string {
   const pairs = Object.entries(params)
     .filter(([, v]) => v != null)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}:${String(v)}`)
     .join("|");
-  return `tmdb:${path}:${LANG}:${pairs}`;
+  return `tmdb:${CACHE_VERSION}:${path}:${LANG}:${pairs}`;
 }
 
 function ttlFor(path: string): number {
@@ -290,6 +292,30 @@ function applyCatalogPriority(media: Media): Media {
   return media;
 }
 
+// Títulos explicitamente banidos (irrelevantes/baixa qualidade ou de
+// conteúdo adulto BL/Yaoi inadequado para o catálogo geral). Filtramos
+// por título normalizado em qualquer lista retornada por mapList.
+const REMOVED_TITLE_SET = new Set<string>(
+  [
+    "Home", "집이 없어", "My Grandpa Is a Vampire", "Föltámadott a tenger",
+    "Magdalene", "Alleyball", "Onimusha: Dawn of Dreams",
+    "The Immature Bakery", "My Roommate Daldal", "Panty Hero",
+    "Bookanima: Dance", "L'abito bianco di Robinet", "Hi Grandpa",
+    "Grandpa", "Doraeji", "The Auschwitz Album",
+    "Napoléon, Bébé et les...", "안 할 이유 없는 임신", "할머니의 걱정뽕",
+    "안녕, 나의 오래된...", "Looking for Paradise",
+    "Overflow", "Modaete yo Adam-kun", "Ichijouma Mankitsu Gurashi!",
+    "Amai Choubatsu", "Mignon", "Hyperventilation", "No Love Zone",
+    "Semantic Error", "Bad Boss",
+  ].map((s) => s.trim().toLowerCase())
+);
+
+function isRemovedTitle(item: TmdbItem): boolean {
+  const t = (item.title ?? item.name ?? "").trim().toLowerCase();
+  if (!t) return false;
+  return REMOVED_TITLE_SET.has(t);
+}
+
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
@@ -304,6 +330,7 @@ async function mapList(
   const allowMissingOverview = opts?.allowMissingOverview ?? true;
   const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
+    .filter((i) => !isRemovedTitle(i))
     .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
     .filter((i) => (requireReleased ? isReleased(i) : true))
     .filter((i) => hasAcceptedAudio(i, allowJa, allowAnyLang))
@@ -532,14 +559,48 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     const existingIds = new Set(filtered.map((f) => f.id));
     filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
   }
-  return mapList(filtered, kind, {
+  return localizeAnimeTitles(await mapList(filtered, kind, {
     minVotes: 0,
     requireReleased: true,
     allowJa: true,
     allowHentai: false,
     allowAnyLang: true,
     allowMissingOverview: true,
-  });
+  }));
+}
+
+// Prioridade de exibição para títulos de anime: pt-BR > en > original.
+// Quando o título atual contém caracteres CJK ou cirílicos, busca uma
+// tradução PT ou EN via /tv|movie/{id}/translations.
+const NON_LATIN_REGEX = /[\u3000-\u9fff\uac00-\ud7af\u0400-\u04ff]/;
+
+async function localizeAnimeTitles(items: Media[]): Promise<Media[]> {
+  const out = await Promise.all(
+    items.map(async (m) => {
+      if (!NON_LATIN_REGEX.test(m.title)) return m;
+      try {
+        const endpoint = m.type === "tv" ? `/tv/${m.id}/translations` : `/movie/${m.id}/translations`;
+        const data = await tget<{ translations?: Array<{ iso_639_1: string; iso_3166_1: string; data: { title?: string; name?: string } }> }>(endpoint, {});
+        const trans = data.translations ?? [];
+        const findTitle = (iso: string) => {
+          const matches = trans.filter((t) => t.iso_639_1 === iso);
+          for (const t of matches) {
+            const v = (t.data.title || t.data.name || "").trim();
+            if (v && !NON_LATIN_REGEX.test(v)) return v;
+          }
+          return null;
+        };
+        const pt = findTitle("pt");
+        const en = findTitle("en");
+        const replacement = pt || en;
+        if (replacement) return { ...m, title: replacement };
+      } catch {
+        // se a tradução falhar, mantém o título atual
+      }
+      return m;
+    })
+  );
+  return out;
 }
 
 export async function fetchDonghuaCultivation(page = 1): Promise<Media[]> {
