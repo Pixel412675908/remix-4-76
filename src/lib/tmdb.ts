@@ -559,14 +559,48 @@ export async function fetchAnime(page = 1): Promise<Media[]> {
     const existingIds = new Set(filtered.map((f) => f.id));
     filtered = [...whitelist.filter((w) => !existingIds.has(w.id)), ...filtered];
   }
-  return mapList(filtered, kind, {
+  return localizeAnimeTitles(await mapList(filtered, kind, {
     minVotes: 0,
     requireReleased: true,
     allowJa: true,
     allowHentai: false,
     allowAnyLang: true,
     allowMissingOverview: true,
-  });
+  }));
+}
+
+// Prioridade de exibição para títulos de anime: pt-BR > en > original.
+// Quando o título atual contém caracteres CJK ou cirílicos, busca uma
+// tradução PT ou EN via /tv|movie/{id}/translations.
+const NON_LATIN_REGEX = /[\u3000-\u9fff\uac00-\ud7af\u0400-\u04ff]/;
+
+async function localizeAnimeTitles(items: Media[]): Promise<Media[]> {
+  const out = await Promise.all(
+    items.map(async (m) => {
+      if (!NON_LATIN_REGEX.test(m.title)) return m;
+      try {
+        const endpoint = m.type === "tv" ? `/tv/${m.id}/translations` : `/movie/${m.id}/translations`;
+        const data = await tget<{ translations?: Array<{ iso_639_1: string; iso_3166_1: string; data: { title?: string; name?: string } }> }>(endpoint, {});
+        const trans = data.translations ?? [];
+        const findTitle = (iso: string) => {
+          const matches = trans.filter((t) => t.iso_639_1 === iso);
+          for (const t of matches) {
+            const v = (t.data.title || t.data.name || "").trim();
+            if (v && !NON_LATIN_REGEX.test(v)) return v;
+          }
+          return null;
+        };
+        const pt = findTitle("pt");
+        const en = findTitle("en");
+        const replacement = pt || en;
+        if (replacement) return { ...m, title: replacement };
+      } catch {
+        // se a tradução falhar, mantém o título atual
+      }
+      return m;
+    })
+  );
+  return out;
 }
 
 export async function fetchDonghuaCultivation(page = 1): Promise<Media[]> {
