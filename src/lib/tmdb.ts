@@ -659,40 +659,25 @@ export async function fetchAdultMovies(page = 1): Promise<Media[]> {
   return mapList(items, "movie", { minVotes: 200 });
 }
 
-// Adulto Explícito: APENAS conteúdo sexual/erótico. Usa whitelist curada de IDs
-// TMDB para garantir popularidade real (365 Dias, 50 Tons, Emmanuelle, etc).
+// Adulto Explícito: LISTA FIXA de 10 títulos definidos manualmente.
+// NÃO é dinâmica, NÃO usa classificação etária, NÃO usa recomendação.
 const EXPLICIT_WHITELIST_IDS: number[] = [
-  337170, 919207, 985939,          // 365 Dni trilogy
-  250546, 339846, 399361,          // Fifty Shades trilogy
-  396422, 537056, 613504, 718789,  // After saga
-  130392,                          // Sex/Life (série)
-  138843,                          // Below Her Mouth
-  227156, 264644,                  // Nymphomaniac I / II
-  1145,                            // Last Tango in Paris
-  11551,                           // Emmanuelle (1974)
-  8332,                            // Shortbus
-  17473,                           // 9 Songs
-  1018,                            // Mulholland Drive
-  11423,                           // Eyes Wide Shut
-  31867,                           // Lust, Caution
-  47964,                           // The Dreamers
-  3174,                            // In the Realm of the Senses
-  504253,                          // Climax
-  76122,                           // The Handmaiden
-  43959,                           // Blue Is the Warmest Colour
-  9504,                            // Original Sin
-  9472,                            // Wild Things
-  857,                             // Basic Instinct
-  9543,                            // Showgirls
+  337170, // 365 Days
+  919207, // 365 Days: This Day
+  985939, // The Next 365 Days
+  250546, // Fifty Shades of Grey
+  339846, // Fifty Shades Darker
+  399361, // Fifty Shades Freed
+  369557, // Love (2015) — Gaspar Noé
+  184098, // Nymphomaniac (director's cut)
+  227156, // Nymphomaniac: Volume I
+  264644, // Nymphomaniac: Volume II
 ];
 
 export async function fetchExplicitMovies(page = 1): Promise<Media[]> {
-  const PER_PAGE = 12;
-  const start = (page - 1) * PER_PAGE;
-  const slice = EXPLICIT_WHITELIST_IDS.slice(start, start + PER_PAGE);
-  if (slice.length === 0) return [];
+  if (page > 1) return [];
   const fetched = await Promise.all(
-    slice.map((id) =>
+    EXPLICIT_WHITELIST_IDS.map((id) =>
       tget<TmdbItem & { genres?: { id: number }[] }>(`/movie/${id}`, {}).then((m) => ({
         ...m,
         genre_ids: m.genres?.map((g) => g.id) ?? [],
@@ -700,7 +685,9 @@ export async function fetchExplicitMovies(page = 1): Promise<Media[]> {
     )
   );
   const items = fetched.filter((x): x is TmdbItem => !!x);
-  return mapList(items, "movie", { minVotes: 0, allowHentai: true });
+  const mapped = await mapList(items, "movie", { minVotes: 0, allowHentai: true });
+  // Garante flag explícita mesmo se a classificação automática não pegar
+  return mapped.map((m) => ({ ...m, adult: true, mature: true }));
 }
 export async function fetchUpcomingMovies(page = 1): Promise<Media[]> {
   const data = await tget<{ results: TmdbItem[] }>("/discover/movie", {

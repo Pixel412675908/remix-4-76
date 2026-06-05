@@ -1,13 +1,14 @@
-// Gate de conteúdo adulto — controla desbloqueio por sessão.
-// Reset automático em sign out.
+// Gate de conteúdo adulto explícito.
+// Regra de segurança: NUNCA persiste desbloqueio. Sempre solicita a senha
+// a cada novo acesso ao conteúdo. O cadeado permanece sempre visível.
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { verifyAdultPassword } from "@/lib/adultPassword";
 import { AdultLockModal } from "@/components/AdultLockModal";
 
 interface AdultGateCtx {
-  unlocked: boolean;
+  unlocked: false;
   hasPassword: boolean;
   requireUnlock: (onUnlock?: () => void) => void;
   lockNow: () => void;
@@ -17,28 +18,13 @@ const Ctx = createContext<AdultGateCtx | null>(null);
 
 export function AdultGateProvider({ children }: { children: ReactNode }) {
   const { user, account } = useAuth();
-  const [unlocked, setUnlocked] = useState(false);
   const [open, setOpen] = useState(false);
   const pendingCb = useRef<(() => void) | null>(null);
 
-  // Reset quando muda usuário (incluindo signOut)
-  useEffect(() => {
-    setUnlocked(false);
-    setOpen(false);
-    pendingCb.current = null;
-  }, [user?.id]);
-
-  const requireUnlock = useCallback(
-    (cb?: () => void) => {
-      if (unlocked) {
-        cb?.();
-        return;
-      }
-      pendingCb.current = cb ?? null;
-      setOpen(true);
-    },
-    [unlocked]
-  );
+  const requireUnlock = useCallback((cb?: () => void) => {
+    pendingCb.current = cb ?? null;
+    setOpen(true);
+  }, []);
 
   const handleSubmit = useCallback(
     async (pwd: string): Promise<string | null> => {
@@ -47,7 +33,6 @@ export function AdultGateProvider({ children }: { children: ReactNode }) {
       }
       const ok = await verifyAdultPassword(user.id, pwd, account.adult_password_hash);
       if (!ok) return "Senha incorreta.";
-      setUnlocked(true);
       setOpen(false);
       const cb = pendingCb.current;
       pendingCb.current = null;
@@ -58,14 +43,14 @@ export function AdultGateProvider({ children }: { children: ReactNode }) {
   );
 
   const lockNow = useCallback(() => {
-    setUnlocked(false);
     pendingCb.current = null;
+    setOpen(false);
   }, []);
 
   return (
     <Ctx.Provider
       value={{
-        unlocked,
+        unlocked: false,
         hasPassword: !!account?.adult_password_hash,
         requireUnlock,
         lockNow,
@@ -89,3 +74,4 @@ export function useAdultGate() {
   if (!ctx) throw new Error("useAdultGate must be used within AdultGateProvider");
   return ctx;
 }
+
