@@ -292,6 +292,30 @@ function applyCatalogPriority(media: Media): Media {
   return media;
 }
 
+// Títulos explicitamente banidos (irrelevantes/baixa qualidade ou de
+// conteúdo adulto BL/Yaoi inadequado para o catálogo geral). Filtramos
+// por título normalizado em qualquer lista retornada por mapList.
+const REMOVED_TITLE_SET = new Set<string>(
+  [
+    "Home", "집이 없어", "My Grandpa Is a Vampire", "Föltámadott a tenger",
+    "Magdalene", "Alleyball", "Onimusha: Dawn of Dreams",
+    "The Immature Bakery", "My Roommate Daldal", "Panty Hero",
+    "Bookanima: Dance", "L'abito bianco di Robinet", "Hi Grandpa",
+    "Grandpa", "Doraeji", "The Auschwitz Album",
+    "Napoléon, Bébé et les...", "안 할 이유 없는 임신", "할머니의 걱정뽕",
+    "안녕, 나의 오래된...", "Looking for Paradise",
+    "Overflow", "Modaete yo Adam-kun", "Ichijouma Mankitsu Gurashi!",
+    "Amai Choubatsu", "Mignon", "Hyperventilation", "No Love Zone",
+    "Semantic Error", "Bad Boss",
+  ].map((s) => s.trim().toLowerCase())
+);
+
+function isRemovedTitle(item: TmdbItem): boolean {
+  const t = (item.title ?? item.name ?? "").trim().toLowerCase();
+  if (!t) return false;
+  return REMOVED_TITLE_SET.has(t);
+}
+
 async function mapList(
   items: TmdbItem[],
   fallbackType?: "movie" | "tv",
@@ -306,6 +330,7 @@ async function mapList(
   const allowMissingOverview = opts?.allowMissingOverview ?? true;
   const allowAnyLang = opts?.allowAnyLang ?? !requireReleased;
   return items
+    .filter((i) => !isRemovedTitle(i))
     .filter((i) => qualityFilter(i, minVotes, allowMissingOverview))
     .filter((i) => (requireReleased ? isReleased(i) : true))
     .filter((i) => hasAcceptedAudio(i, allowJa, allowAnyLang))
