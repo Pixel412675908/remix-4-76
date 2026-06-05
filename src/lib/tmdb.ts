@@ -20,13 +20,15 @@ const tmdbMemoryCache = new Map<string, { expiresAt: number; payload: unknown }>
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
 
+// Bumped to invalidate stale cached payloads after explicit/anime/blacklist fixes.
+const CACHE_VERSION = "v4";
 function cacheKeyFor(path: string, params: Record<string, string | number | boolean | undefined>): string {
   const pairs = Object.entries(params)
     .filter(([, v]) => v != null)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}:${String(v)}`)
     .join("|");
-  return `tmdb:${path}:${LANG}:${pairs}`;
+  return `tmdb:${CACHE_VERSION}:${path}:${LANG}:${pairs}`;
 }
 
 function ttlFor(path: string): number {
